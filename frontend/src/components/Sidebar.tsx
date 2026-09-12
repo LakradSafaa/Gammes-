@@ -41,40 +41,104 @@ type NavItem = {
 };
 
 const pilotageItems: NavItem[] = [
-  { label: "Dashboard", path: "/", icon: <Gauge size={17} /> },
-  { label: "Indicateurs / KPI", path: "/kpi", icon: <BarChart3 size={17} /> },
+  {
+    label: "Dashboard",
+    path: "/",
+    icon: <Gauge size={18} />,
+  },
+  {
+    label: "Indicateurs / KPI",
+    path: "/kpi",
+    icon: <BarChart3 size={18} />,
+  },
 ];
 
 const maintenanceItems: NavItem[] = [
-  { label: "Équipements", path: "/equipements", icon: <HardHat size={17} /> },
-  { label: "Gammes opératoires", path: "/gammes", icon: <FileText size={17} /> },
-  { label: "Versions", path: "/versions", icon: <History size={17} /> },
-  { label: "Plans maintenance", path: "/plans-maintenance", icon: <ClipboardList size={17} /> },
+  {
+    label: "Équipements",
+    path: "/equipements",
+    icon: <HardHat size={18} />,
+  },
+  {
+    label: "Gammes opératoires",
+    path: "/gammes",
+    icon: <FileText size={18} />,
+  },
+  {
+    label: "Versions",
+    path: "/versions",
+    icon: <History size={18} />,
+  },
+  {
+    label: "Plans maintenance",
+    path: "/plans-maintenance",
+    icon: <ClipboardList size={18} />,
+  },
 ];
 
 const referentielItems: NavItem[] = [
-  { label: "EPI", path: "/epis", icon: <HardHat size={17} /> },
-  { label: "Risques", path: "/risques", icon: <ShieldAlert size={17} /> },
-  { label: "Outillages", path: "/outillages", icon: <Wrench size={17} /> },
-  { label: "Pièces de rechange", path: "/pieces", icon: <Boxes size={17} /> },
-  { label: "Documents", path: "/documents", icon: <BookOpenText size={17} /> },
+  {
+    label: "EPI",
+    path: "/epis",
+    icon: <HardHat size={18} />,
+  },
+  {
+    label: "Risques",
+    path: "/risques",
+    icon: <ShieldAlert size={18} />,
+  },
+  {
+    label: "Outillages",
+    path: "/outillages",
+    icon: <Wrench size={18} />,
+  },
+  {
+    label: "Pièces de rechange",
+    path: "/pieces",
+    icon: <Boxes size={18} />,
+  },
+  {
+    label: "Documents",
+    path: "/documents",
+    icon: <BookOpenText size={18} />,
+  },
 ];
 
 const systemItems: NavItem[] = [
-  { label: "QR Codes", path: "/qr-codes", icon: <QrCode size={17} /> },
-  { label: "Exports", path: "/exports", icon: <FileArchive size={17} /> },
+  {
+    label: "QR Codes",
+    path: "/qr-codes",
+    icon: <QrCode size={18} />,
+  },
+  {
+    label: "Exports",
+    path: "/exports",
+    icon: <FileArchive size={18} />,
+  },
 ];
 
-function NavigationItem({ item }: { item: NavItem }) {
+function NavigationItem({
+  item,
+}: {
+  item: NavItem;
+}) {
   return (
     <NavLink
       to={item.path}
+      end={item.path === "/"}
       className={({ isActive }) =>
-        isActive ? "sidebar-link active" : "sidebar-link"
+        isActive
+          ? "sidebar-link active"
+          : "sidebar-link"
       }
     >
-      <span className="sidebar-link-icon">{item.icon}</span>
-      <span className="sidebar-link-label">{item.label}</span>
+      <span className="sidebar-link-icon">
+        {item.icon}
+      </span>
+
+      <span className="sidebar-link-label">
+        {item.label}
+      </span>
     </NavLink>
   );
 }
@@ -83,8 +147,15 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [librariesOpen, setLibrariesOpen] = useState(true);
-  const [systemOpen, setSystemOpen] = useState(true);
+  const [
+    librariesOpen,
+    setLibrariesOpen,
+  ] = useState(true);
+
+  const [
+    systemOpen,
+    setSystemOpen,
+  ] = useState(true);
 
   const libraryActive = useMemo(
     () =>
@@ -104,7 +175,13 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login", { replace: true });
+
+    navigate(
+      "/login",
+      {
+        replace: true,
+      },
+    );
   };
 
   return (
@@ -114,7 +191,7 @@ export default function Sidebar() {
           <Wrench size={22} />
         </div>
 
-        <div>
+        <div className="sidebar-brand-copy">
           <strong>Gammes</strong>
           <span>Maintenance</span>
         </div>
@@ -122,18 +199,28 @@ export default function Sidebar() {
 
       <div className="sidebar-scroll">
         <section className="sidebar-section">
-          <p className="sidebar-section-title">PILOTAGE</p>
+          <p className="sidebar-section-title">
+            PILOTAGE
+          </p>
 
           {pilotageItems.map((item) => (
-            <NavigationItem key={item.path} item={item} />
+            <NavigationItem
+              key={item.path}
+              item={item}
+            />
           ))}
         </section>
 
         <section className="sidebar-section">
-          <p className="sidebar-section-title">MAINTENANCE</p>
+          <p className="sidebar-section-title">
+            MAINTENANCE
+          </p>
 
           {maintenanceItems.map((item) => (
-            <NavigationItem key={item.path} item={item} />
+            <NavigationItem
+              key={item.path}
+              item={item}
+            />
           ))}
         </section>
 
@@ -146,24 +233,33 @@ export default function Sidebar() {
                 : "sidebar-group-button"
             }
             onClick={() =>
-              setLibrariesOpen((value) => !value)
+              setLibrariesOpen(
+                (value) => !value,
+              )
             }
           >
             <span className="sidebar-group-left">
-              <PackageSearch size={17} />
+              <PackageSearch size={18} />
               <span>Référentiels</span>
             </span>
 
             <ChevronDown
-              size={15}
-              className={librariesOpen ? "chevron open" : "chevron"}
+              size={16}
+              className={
+                librariesOpen
+                  ? "chevron open"
+                  : "chevron"
+              }
             />
           </button>
 
           {librariesOpen && (
             <div className="sidebar-submenu">
               {referentielItems.map((item) => (
-                <NavigationItem key={item.path} item={item} />
+                <NavigationItem
+                  key={item.path}
+                  item={item}
+                />
               ))}
             </div>
           )}
@@ -178,24 +274,33 @@ export default function Sidebar() {
                 : "sidebar-group-button"
             }
             onClick={() =>
-              setSystemOpen((value) => !value)
+              setSystemOpen(
+                (value) => !value,
+              )
             }
           >
             <span className="sidebar-group-left">
-              <FileArchive size={17} />
+              <FileArchive size={18} />
               <span>Système</span>
             </span>
 
             <ChevronDown
-              size={15}
-              className={systemOpen ? "chevron open" : "chevron"}
+              size={16}
+              className={
+                systemOpen
+                  ? "chevron open"
+                  : "chevron"
+              }
             />
           </button>
 
           {systemOpen && (
             <div className="sidebar-submenu">
               {systemItems.map((item) => (
-                <NavigationItem key={item.path} item={item} />
+                <NavigationItem
+                  key={item.path}
+                  item={item}
+                />
               ))}
             </div>
           )}
@@ -203,9 +308,21 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        <NavLink to="/parametres" className="sidebar-link">
-          <Settings size={17} />
-          <span>Paramètres</span>
+        <NavLink
+          to="/parametres"
+          className={({ isActive }) =>
+            isActive
+              ? "sidebar-link active"
+              : "sidebar-link"
+          }
+        >
+          <span className="sidebar-link-icon">
+            <Settings size={18} />
+          </span>
+
+          <span className="sidebar-link-label">
+            Paramètres
+          </span>
         </NavLink>
 
         <button
@@ -213,8 +330,13 @@ export default function Sidebar() {
           className="sidebar-link sidebar-logout"
           onClick={handleLogout}
         >
-          <LogOut size={17} />
-          <span>Déconnexion</span>
+          <span className="sidebar-link-icon">
+            <LogOut size={18} />
+          </span>
+
+          <span className="sidebar-link-label">
+            Déconnexion
+          </span>
         </button>
       </div>
     </aside>
