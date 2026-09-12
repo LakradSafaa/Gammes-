@@ -1,0 +1,38 @@
+/* THÈME TECHNIQUE — Wizard Nouvelle Gamme */
+
+.wizard-page,
+.gamme-create-page {
+  background: #F6F8FA;
+}
+
+.wizard-step.active,
+.wizard-step.completed,
+.step-indicator.active,
+.step-indicator.completed {
+  background: #00A878 !important;
+  border-color: #00A878 !important;
+  color: #FFFFFF !important;
+}
+
+.wizard-progress-fill,
+.progress-fill {
+  background: #00A878 !important;
+}
+
+.wizard-card,
+.wizard-section {
+  border-color: #DDE7E3 !important;
+  box-shadow: 0 8px 24px rgba(23, 43, 42, 0.04) !important;
+}
+
+.wizard-next,
+.wizard-submit {
+  background: #00966D !important;
+  border-color: #00966D !important;
+  color: #FFFFFF !important;
+}
+
+.wizard-next:hover,
+.wizard-submit:hover {
+  background: #007F5F !important;
+}

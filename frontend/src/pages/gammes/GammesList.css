@@ -1,0 +1,540 @@
+.gammes-page {
+  width: 100%;
+}
+
+.gammes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.gammes-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 750;
+  color: #082943;
+}
+
+.gammes-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.gammes-create-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  border: none;
+  border-radius: 9px;
+
+  padding: 11px 17px;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  color: #ffffff;
+  background: #ef3340;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 4px 12px rgba(239, 51, 64, 0.2);
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gammes-create-button:hover {
+  background: #cf2634;
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 6px 16px rgba(239, 51, 64, 0.26);
+}
+
+.gammes-card {
+  width: 100%;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 2px 8px rgba(8, 41, 67, 0.05);
+}
+
+.gammes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 18px 20px;
+
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gammes-search {
+  width: min(520px, 100%);
+
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 0 14px;
+
+  background: #f8fafc;
+
+  border: 1px solid #dce5ed;
+
+  border-radius: 8px;
+
+  color: #64748b;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gammes-search:focus-within {
+  border-color: #1687e8;
+
+  box-shadow:
+    0 0 0 3px rgba(22, 135, 232, 0.1);
+
+  background: #ffffff;
+}
+
+.gammes-search input {
+  width: 100%;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #082943;
+
+  font-size: 14px;
+}
+
+.gammes-search input::placeholder {
+  color: #94a3b8;
+}
+
+.gammes-count {
+  white-space: nowrap;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  color: #64748b;
+
+  padding: 7px 11px;
+
+  border-radius: 20px;
+
+  background: #f1f5f9;
+}
+
+.gammes-table-container {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+.gammes-table {
+  width: 100%;
+
+  min-width: 1050px;
+
+  border-collapse: collapse;
+
+  table-layout: auto;
+}
+
+.gammes-table thead {
+  background: #f8fafc;
+}
+
+.gammes-table th {
+  padding: 13px 16px;
+
+  text-align: left;
+
+  border-bottom: 1px solid #e2e8f0;
+
+  color: #475569;
+
+  font-size: 12px;
+  font-weight: 750;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.03em;
+
+  white-space: nowrap;
+}
+
+.gammes-table td {
+  padding: 16px;
+
+  border-bottom: 1px solid #edf2f7;
+
+  color: #334155;
+
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+.gammes-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.gammes-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.gammes-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.gammes-code {
+  display: inline-flex;
+
+  padding: 6px 9px;
+
+  border-radius: 6px;
+
+  background: #dcedff;
+
+  color: #07365d;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+.gammes-designation {
+  min-width: 260px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.gammes-designation strong {
+  color: #082943;
+
+  font-size: 13px;
+}
+
+.gammes-designation span {
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+.gammes-equipment {
+  min-width: 155px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.gammes-equipment strong {
+  color: #334155;
+
+  font-size: 13px;
+}
+
+.gammes-equipment span {
+  font-size: 11px;
+
+  color: #1687e8;
+
+  font-weight: 700;
+}
+
+.gammes-version {
+  display: inline-flex;
+
+  min-width: 38px;
+
+  justify-content: center;
+
+  padding: 5px 8px;
+
+  background: #ffe1df;
+
+  color: #cf2634;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+
+  font-weight: 800;
+}
+
+.gammes-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 6px 10px;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: 750;
+
+  white-space: nowrap;
+}
+
+.gammes-status-valid {
+  background: #d8f7e8;
+
+  color: #08794d;
+}
+
+.gammes-status-validation {
+  background: #dcedff;
+
+  color: #075ba1;
+}
+
+.gammes-status-archive {
+  background: #e9edf2;
+
+  color: #5d6876;
+}
+
+.gammes-status-draft {
+  background: #ffe1df;
+
+  color: #b72530;
+}
+
+.gammes-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  white-space: nowrap;
+}
+
+.gammes-action-button {
+  width: 34px;
+  height: 34px;
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  border-radius: 7px;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.gammes-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.gammes-action-view {
+  background: #dcedff;
+  color: #075ba1;
+}
+
+.gammes-action-view:hover {
+  background: #c8e2ff;
+}
+
+.gammes-action-edit {
+  background: #ffe1df;
+  color: #cf2634;
+}
+
+.gammes-action-edit:hover {
+  background: #ffd0cd;
+}
+
+.gammes-action-pdf {
+  background: #fff0ef;
+  color: #ef3340;
+}
+
+.gammes-action-pdf:hover {
+  background: #ffe1df;
+}
+
+.gammes-action-word {
+  background: #e7f2ff;
+  color: #1687e8;
+}
+
+.gammes-action-word:hover {
+  background: #d7eaff;
+}
+
+.gammes-action-qr {
+  background: #d8f7e8;
+  color: #08794d;
+}
+
+.gammes-action-qr:hover {
+  background: #c4f0dc;
+}
+
+.gammes-error {
+  margin: 20px;
+
+  padding: 14px 16px;
+
+  border-radius: 8px;
+
+  background: #fff0ef;
+
+  border: 1px solid #ffc9c6;
+
+  color: #b72530;
+
+  font-size: 13px;
+}
+
+.gammes-empty {
+  min-height: 280px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  color: #94a3b8;
+}
+
+.gammes-empty h3 {
+  margin: 14px 0 4px;
+
+  color: #334155;
+
+  font-size: 17px;
+}
+
+.gammes-empty p {
+  margin: 0;
+
+  font-size: 13px;
+}
+
+.gammes-loading {
+  min-height: 350px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+.gammes-loading h3 {
+  margin: 16px 0 5px;
+
+  color: #082943;
+}
+
+.gammes-loading p {
+  margin: 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.gammes-spinner {
+  width: 38px;
+  height: 38px;
+
+  border: 4px solid #dcedff;
+
+  border-top-color: #1687e8;
+
+  border-radius: 50%;
+
+  animation: gammes-spin 0.8s linear infinite;
+}
+
+@keyframes gammes-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .gammes-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .gammes-create-button {
+    width: 100%;
+  }
+
+  .gammes-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .gammes-search {
+    width: 100%;
+  }
+
+  .gammes-count {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .gammes-header h1 {
+    font-size: 23px;
+  }
+
+  .gammes-card {
+    border-radius: 8px;
+  }
+
+  .gammes-toolbar {
+    padding: 14px;
+  }
+}

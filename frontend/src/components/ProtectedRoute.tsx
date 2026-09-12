@@ -1,20 +1,42 @@
-import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import type {
+  ReactNode,
+} from "react";
 
-import { isAuthenticated } from "../api/auth";
+import {
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
-interface ProtectedRouteProps {
+import {
+  isAuthenticated,
+} from "../api/auth";
+
+
+type ProtectedRouteProps = {
   children: ReactNode;
-}
+};
 
-function ProtectedRoute({
+
+export default function ProtectedRoute({
   children,
 }: ProtectedRouteProps) {
+  const location =
+    useLocation();
+
+
   if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from:
+            location.pathname,
+        }}
+      />
+    );
   }
+
 
   return <>{children}</>;
 }
-
-export default ProtectedRoute;

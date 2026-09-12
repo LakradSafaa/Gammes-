@@ -1,0 +1,65 @@
+/* THÈME TECHNIQUE — surcharge du module Gammes */
+
+.module-page,
+.gammes-page,
+.detail-page,
+.edit-page {
+  background: #F6F8FA;
+}
+
+.module-header h1,
+.detail-hero h1,
+.edit-form h2,
+.detail-section h2 {
+  color: #172B2A;
+}
+
+.hero-code,
+.code-pill,
+.version-pill {
+  background: #DDF7EE !important;
+  color: #0B5746 !important;
+}
+
+.module-button-primary,
+.module-button-blue,
+.module-button-green {
+  background: #00966D !important;
+  border-color: #00966D !important;
+  color: #FFFFFF !important;
+}
+
+.module-button-primary:hover,
+.module-button-blue:hover,
+.module-button-green:hover {
+  background: #007F5F !important;
+  border-color: #007F5F !important;
+}
+
+.module-card,
+.detail-section,
+.edit-form {
+  border-color: #DDE7E3 !important;
+  box-shadow: 0 8px 24px rgba(23, 43, 42, 0.04) !important;
+}
+
+.module-table th,
+.gammes-table th {
+  background: #F1FBF7 !important;
+  color: #0B5746 !important;
+}
+
+.status-validee {
+  background: #DDF7EE !important;
+  color: #0B5746 !important;
+}
+
+.status-en_validation {
+  background: #FFF7E6 !important;
+  color: #A45B05 !important;
+}
+
+.status-brouillon {
+  background: #EEF7F4 !important;
+  color: #526862 !important;
+}
