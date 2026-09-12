@@ -8,7 +8,7 @@
       "root": "backend",
       "framework": "django",
       "runtime": "python",
-      "entrypoint": "backend/wsgi.py"
+      "entrypoint": "config/wsgi.py"
     }
   },
   "rewrites": [
