@@ -1,0 +1,9 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+@page{size:A4;margin:16mm}body{font-family:Arial,sans-serif;font-size:10pt;color:#1f2937}h1{font-size:20pt}h2{font-size:14pt;border-bottom:1px solid #aaa;padding-bottom:4px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px}.box{border:1px solid #ddd;padding:8px;margin:8px 0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px;text-align:left}th{background:#eee}.footer{position:fixed;bottom:-8mm;font-size:8pt}
+</style></head><body>
+<h1>Gamme opératoire — {{ version.gamme.code }}</h1><div class="meta"><div><b>Désignation :</b> {{ version.gamme.designation }}</div><div><b>Version :</b> {{ version.code_version }}</div><div><b>Statut :</b> {{ version.get_statut_display }}</div><div><b>Durée :</b> {{ version.duree_minutes }} min</div></div>
+<h2>Maintenance</h2><div class="box">Type : {{ version.get_type_maintenance_display|default:"-" }} — Mode : {{ version.get_mode_maintenance_display|default:"-" }} — Périodicité : {{ version.periodicite|default:"-" }}</div>
+<h2>Sécurité</h2><table><tr><th>Risques</th><th>EPI</th></tr><tr><td>{% for x in version.version_risques.all %}{{ x.risque.nom }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{% for x in version.version_epis.all %}{{ x.epi.nom }}{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr></table>
+<h2>Étapes & actions</h2>{% for step in version.etapes.all %}<div class="box"><b>{{ step.numero }}. {{ step.titre }}</b><p>{{ step.description|default:"" }}</p><ol>{% for action in step.actions.all %}<li>{{ action.contenu }} — {{ action.duree_minutes }} min</li>{% endfor %}</ol></div>{% endfor %}
+<div class="footer">Document généré automatiquement — {{ version.gamme.code }} {{ version.code_version }}</div>
+</body></html>
