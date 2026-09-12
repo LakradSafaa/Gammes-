@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import type {
+  ReactNode,
+} from "react";
 
 import {
   Bell,
@@ -7,6 +9,8 @@ import {
 } from "lucide-react";
 
 import Sidebar from "./Sidebar";
+
+import "./AppLayout.css";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -21,13 +25,16 @@ function AppLayout({
 
       <div className="application-content">
         <header className="topbar">
-          <div className="search-box">
-            <Search size={18} />
+          <div className="topbar-search-wrap">
+            <div className="search-box">
+              <Search size={18} />
 
-            <input
-              type="text"
-              placeholder="Rechercher..."
-            />
+              <input
+                type="text"
+                placeholder="Rechercher un équipement, une gamme..."
+                aria-label="Recherche"
+              />
+            </div>
           </div>
 
           <div className="topbar-actions">
@@ -36,21 +43,28 @@ function AppLayout({
               type="button"
               aria-label="Notifications"
             >
-              <Bell size={20} />
+              <Bell size={19} />
 
               <span className="notification-badge">
                 3
               </span>
             </button>
 
+            <div className="topbar-divider" />
+
             <div className="user-info">
               <div className="user-avatar">
                 <UserRound size={20} />
               </div>
 
-              <div>
-                <strong>admin</strong>
-                <span>Administrateur</span>
+              <div className="user-copy">
+                <strong>
+                  admin
+                </strong>
+
+                <span>
+                  Administrateur
+                </span>
               </div>
             </div>
           </div>
