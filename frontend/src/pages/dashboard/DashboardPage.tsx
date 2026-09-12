@@ -11,6 +11,7 @@ import {
   PackageCheck,
   RefreshCw,
   ShieldCheck,
+  TrendingUp,
   Wrench,
 } from "lucide-react";
 
@@ -18,59 +19,30 @@ import api from "../../api/axios";
 
 import "./DashboardPage.css";
 
-
 type DistributionItem = {
   total: number;
-
   statut?: string | null;
-
-  type_maintenance?:
-    | string
-    | null;
-
-  constructeur?:
-    | string
-    | null;
+  type_maintenance?: string | null;
+  constructeur?: string | null;
 };
-
 
 type DashboardData = {
   gammes_total: number;
-
   equipements_total: number;
-
   versions_total: number;
-
-  par_statut:
-    DistributionItem[];
-
-  par_type_maintenance:
-    DistributionItem[];
-
-  par_constructeur:
-    DistributionItem[];
+  par_statut: DistributionItem[];
+  par_type_maintenance: DistributionItem[];
+  par_constructeur: DistributionItem[];
 };
 
-
-const EMPTY_DASHBOARD:
-  DashboardData = {
+const EMPTY_DASHBOARD: DashboardData = {
   gammes_total: 0,
-
   equipements_total: 0,
-
   versions_total: 0,
-
   par_statut: [],
-
   par_type_maintenance: [],
-
   par_constructeur: [],
 };
-
-
-/* ============================================================
-   LIBELLÉS
-   ============================================================ */
 
 function labelStatus(
   value?: string | null,
@@ -89,13 +61,9 @@ function labelStatus(
       return "Archivée";
 
     default:
-      return (
-        value ||
-        "Non renseigné"
-      );
+      return value || "Non renseigné";
   }
 }
-
 
 function labelMaintenance(
   value?: string | null,
@@ -117,17 +85,9 @@ function labelMaintenance(
       return "Prédictive";
 
     default:
-      return (
-        value ||
-        "Non renseigné"
-      );
+      return value || "Non renseigné";
   }
 }
-
-
-/* ============================================================
-   EXTRAIRE UN COUNT D'UNE API PAGINÉE OU D'UN TABLEAU
-   ============================================================ */
 
 function extractCount(
   data: unknown,
@@ -145,20 +105,17 @@ function extractCount(
       ).count;
 
     if (
-      typeof count ===
-      "number"
+      typeof count === "number"
     ) {
       return count;
     }
   }
-
 
   if (
     Array.isArray(data)
   ) {
     return data.length;
   }
-
 
   if (
     data &&
@@ -179,56 +136,54 @@ function extractCount(
     }
   }
 
-
   return 0;
 }
 
+function statusClassName(
+  status?: string | null,
+) {
+  switch (status) {
+    case "validee":
+      return "is-validated";
 
-/* ============================================================
-   DASHBOARD
-   ============================================================ */
+    case "en_validation":
+      return "is-review";
+
+    case "archivee":
+      return "is-archived";
+
+    default:
+      return "is-draft";
+  }
+}
 
 export default function DashboardPage() {
   const [
     data,
     setData,
-  ] =
-    useState<DashboardData>(
-      EMPTY_DASHBOARD,
-    );
-
+  ] = useState<DashboardData>(
+    EMPTY_DASHBOARD,
+  );
 
   const [
     episTotal,
     setEpisTotal,
-  ] =
-    useState(0);
-
+  ] = useState(0);
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(true);
-
+  ] = useState(true);
 
   const [
     refreshing,
     setRefreshing,
-  ] =
-    useState(false);
-
+  ] = useState(false);
 
   const [
     error,
     setError,
-  ] =
-    useState("");
-
-
-  /* =========================================================
-     CHARGER LE DASHBOARD
-     ========================================================= */
+  ] = useState("");
 
   const loadDashboard =
     async (
@@ -241,110 +196,60 @@ export default function DashboardPage() {
           setLoading(true);
         }
 
-
         setError("");
 
-
-        /* ----------------------------------------------------
-           1. DASHBOARD PRINCIPAL
-           ---------------------------------------------------- */
-
-        try {
-          const response =
-            await api.get<
-              DashboardData
-            >(
-              "/dashboard/",
-            );
-
-
-          const responseData =
-            response.data;
-
-
-          setData({
-            gammes_total:
-              Number(
-                responseData
-                  ?.gammes_total ??
-                  0,
-              ),
-
-            equipements_total:
-              Number(
-                responseData
-                  ?.equipements_total ??
-                  0,
-              ),
-
-            versions_total:
-              Number(
-                responseData
-                  ?.versions_total ??
-                  0,
-              ),
-
-            par_statut:
-              Array.isArray(
-                responseData
-                  ?.par_statut,
-              )
-                ? responseData
-                    .par_statut
-                : [],
-
-            par_type_maintenance:
-              Array.isArray(
-                responseData
-                  ?.par_type_maintenance,
-              )
-                ? responseData
-                    .par_type_maintenance
-                : [],
-
-            par_constructeur:
-              Array.isArray(
-                responseData
-                  ?.par_constructeur,
-              )
-                ? responseData
-                    .par_constructeur
-                : [],
-          });
-        } catch (
-          dashboardError:
-            any
-        ) {
-          console.error(
-            "Erreur /dashboard/ :",
-            dashboardError,
+        const response =
+          await api.get<DashboardData>(
+            "/dashboard/",
           );
 
+        const responseData =
+          response.data;
 
-          console.error(
-            "Status :",
-            dashboardError
-              ?.response
-              ?.status,
-          );
+        setData({
+          gammes_total:
+            Number(
+              responseData
+                ?.gammes_total ?? 0,
+            ),
 
+          equipements_total:
+            Number(
+              responseData
+                ?.equipements_total ?? 0,
+            ),
 
-          console.error(
-            "Réponse backend :",
-            dashboardError
-              ?.response
-              ?.data,
-          );
+          versions_total:
+            Number(
+              responseData
+                ?.versions_total ?? 0,
+            ),
 
+          par_statut:
+            Array.isArray(
+              responseData?.par_statut,
+            )
+              ? responseData.par_statut
+              : [],
 
-          throw dashboardError;
-        }
+          par_type_maintenance:
+            Array.isArray(
+              responseData
+                ?.par_type_maintenance,
+            )
+              ? responseData
+                  .par_type_maintenance
+              : [],
 
-
-        /* ----------------------------------------------------
-           2. EPI
-           Une erreur EPI ne bloque PLUS le Dashboard.
-           ---------------------------------------------------- */
+          par_constructeur:
+            Array.isArray(
+              responseData
+                ?.par_constructeur,
+            )
+              ? responseData
+                  .par_constructeur
+              : [],
+        });
 
         try {
           const epiResponse =
@@ -352,42 +257,23 @@ export default function DashboardPage() {
               "/epis/",
             );
 
-
           setEpisTotal(
             extractCount(
               epiResponse.data,
             ),
           );
-        } catch (
-          epiError
-        ) {
-          console.warn(
-            "Impossible de récupérer le nombre d'EPI.",
-            epiError,
-          );
-
-
+        } catch {
           setEpisTotal(0);
         }
-
       } catch (
         err: any
       ) {
-        console.error(
-          "Erreur chargement Dashboard :",
-          err,
-        );
-
-
         const status =
-          err?.response
-            ?.status;
-
+          err?.response?.status;
 
         const backendMessage =
           err?.response
             ?.data?.detail;
-
 
         if (
           status === 401
@@ -405,7 +291,7 @@ export default function DashboardPage() {
           status === 500
         ) {
           setError(
-            "Erreur interne du backend sur /api/dashboard/. Vérifiez le terminal Django.",
+            "Erreur interne du backend sur /api/dashboard/.",
           );
         } else if (
           backendMessage
@@ -426,19 +312,9 @@ export default function DashboardPage() {
       }
     };
 
-
-  /* =========================================================
-     INITIALISATION
-     ========================================================= */
-
   useEffect(() => {
     void loadDashboard();
   }, []);
-
-
-  /* =========================================================
-     TOTAL DES STATUTS
-     ========================================================= */
 
   const totalStatuses =
     useMemo(
@@ -450,79 +326,85 @@ export default function DashboardPage() {
           ) =>
             sum +
             Number(
-              item.total ||
-                0,
+              item.total || 0,
             ),
-
           0,
         ),
-
-      [
-        data.par_statut,
-      ],
+      [data.par_statut],
     );
 
+  const validatedTotal =
+    useMemo(
+      () =>
+        data.par_statut
+          .filter(
+            (item) =>
+              item.statut ===
+              "validee",
+          )
+          .reduce(
+            (
+              sum,
+              item,
+            ) =>
+              sum +
+              Number(
+                item.total || 0,
+              ),
+            0,
+          ),
+      [data.par_statut],
+    );
 
-  /* =========================================================
-     LOADING
-     ========================================================= */
+  const validatedPercent =
+    totalStatuses > 0
+      ? Math.round(
+          (
+            validatedTotal /
+            totalStatuses
+          ) *
+            100,
+        )
+      : 0;
 
   if (loading) {
     return (
       <div className="dash-loading">
-
         <RefreshCw
           size={23}
           className="spin"
         />
 
-        Chargement du
-        tableau de bord...
-
+        Chargement du tableau de bord...
       </div>
     );
   }
 
-
-  /* =========================================================
-     INTERFACE
-     ========================================================= */
-
   return (
     <div className="dash-page">
-
-      {/* ====================================================
-          TITRE
-          ==================================================== */}
-
       <header className="dash-title-row">
-
         <div>
+          <div className="dash-eyebrow">
+            PILOTAGE MAINTENANCE
+          </div>
 
           <h1>
             Dashboard
           </h1>
 
           <p>
-            Vue générale de
-            l&apos;activité
-            maintenance
+            Vue synthétique de l&apos;activité maintenance et de la documentation technique.
           </p>
-
         </div>
-
 
         <button
           type="button"
           className="dashboard-refresh"
           disabled={refreshing}
           onClick={() =>
-            void loadDashboard(
-              true,
-            )
+            void loadDashboard(true)
           }
         >
-
           <RefreshCw
             size={16}
             className={
@@ -533,19 +415,11 @@ export default function DashboardPage() {
           />
 
           Actualiser
-
         </button>
-
       </header>
-
-
-      {/* ====================================================
-          ERREUR
-          ==================================================== */}
 
       {error && (
         <div className="dash-error">
-
           <strong>
             Erreur :
           </strong>
@@ -553,487 +427,354 @@ export default function DashboardPage() {
           {" "}
 
           {error}
-
         </div>
       )}
 
-
-      {/* ====================================================
-          KPI
-          ==================================================== */}
-
       <section className="dash-kpi-grid">
-
-        {/* ÉQUIPEMENTS */}
-
         <article className="dash-kpi-card">
-
           <div className="dash-kpi-icon">
-
-            <PackageCheck
-              size={25}
-            />
-
+            <PackageCheck size={23} />
           </div>
 
-
           <div className="dash-kpi-content">
+            <small>
+              PARC INDUSTRIEL
+            </small>
 
             <strong>
-              {
-                data
-                  .equipements_total
-              }
+              {data.equipements_total}
             </strong>
 
             <span>
               Équipements
             </span>
-
-            <small>
-              Parc industriel
-            </small>
-
           </div>
-
         </article>
 
-
-        {/* GAMMES */}
-
         <article className="dash-kpi-card">
-
           <div className="dash-kpi-icon">
-
-            <FileText
-              size={25}
-            />
-
+            <FileText size={23} />
           </div>
 
-
           <div className="dash-kpi-content">
+            <small>
+              DOCUMENTATION
+            </small>
 
             <strong>
-              {
-                data
-                  .gammes_total
-              }
+              {data.gammes_total}
             </strong>
 
             <span>
               Gammes opératoires
             </span>
-
-            <small>
-              Documentation
-              maintenance
-            </small>
-
           </div>
-
         </article>
 
-
-        {/* VERSIONS */}
-
         <article className="dash-kpi-card">
-
           <div className="dash-kpi-icon">
-
-            <Layers3
-              size={25}
-            />
-
+            <Layers3 size={23} />
           </div>
 
-
           <div className="dash-kpi-content">
+            <small>
+              VERSIONING
+            </small>
 
             <strong>
-              {
-                data
-                  .versions_total
-              }
+              {data.versions_total}
             </strong>
 
             <span>
               Versions
             </span>
-
-            <small>
-              Historique
-              documentaire
-            </small>
-
           </div>
-
         </article>
 
-
-        {/* EPI */}
-
         <article className="dash-kpi-card">
-
           <div className="dash-kpi-icon">
-
-            <ShieldCheck
-              size={25}
-            />
-
+            <ShieldCheck size={23} />
           </div>
 
-
           <div className="dash-kpi-content">
+            <small>
+              SÉCURITÉ
+            </small>
 
             <strong>
               {episTotal}
             </strong>
 
             <span>
-              EPI
+              EPI référencés
             </span>
-
-            <small>
-              Référentiel
-              sécurité
-            </small>
-
           </div>
-
         </article>
-
       </section>
 
+      <section className="dash-summary-strip">
+        <div>
+          <TrendingUp size={18} />
 
-      {/* ====================================================
-          ANALYSES
-          ==================================================== */}
+          <span>
+            Taux de versions validées
+          </span>
+        </div>
+
+        <strong>
+          {validatedPercent} %
+        </strong>
+
+        <div className="dash-progress">
+          <span
+            style={{
+              width:
+                `${validatedPercent}%`,
+            }}
+          />
+        </div>
+      </section>
 
       <section className="dash-analytics-grid">
-
-        {/* STATUTS */}
-
         <article className="dash-panel">
-
           <div className="dash-panel-title">
+            <div>
+              <span>
+                VERSIONING
+              </span>
 
-            <h2>
-              Versions par
-              statut
-            </h2>
+              <h2>
+                Versions par statut
+              </h2>
+            </div>
 
-            <CheckCircle2
-              size={18}
-            />
-
+            <CheckCircle2 size={19} />
           </div>
 
-
-          <div className="dash-donut-wrap">
-
+          <div className="dash-donut-area">
             <div className="dash-donut">
-
-              <div>
-
+              <div className="dash-donut-center">
                 <strong>
-                  {
-                    totalStatuses
-                  }
+                  {totalStatuses}
                 </strong>
 
                 <span>
                   total
                 </span>
-
               </div>
-
             </div>
-
 
             <div className="dash-legend">
+              {data.par_statut.length === 0 ? (
+                <div className="empty-state">
+                  Aucune donnée
+                </div>
+              ) : (
+                data.par_statut.map(
+                  (item) => (
+                    <div
+                      className="dash-legend-row"
+                      key={
+                        item.statut ||
+                        "statut"
+                      }
+                    >
+                      <span
+                        className={
+                          `dash-status-dot ${
+                            statusClassName(
+                              item.statut,
+                            )
+                          }`
+                        }
+                      />
 
-              {
-                data
-                  .par_statut
-                  .length ===
-                0 ? (
-                  <div className="empty-state">
-                    Aucune donnée
-                  </div>
-                ) : (
-                  data
-                    .par_statut
-                    .map(
-                      (
-                        item,
-                      ) => (
-                        <div
-                          className="dash-legend-row"
-                          key={
-                            item.statut ||
-                            "statut"
-                          }
-                        >
+                      <span>
+                        {labelStatus(
+                          item.statut,
+                        )}
+                      </span>
 
-                          <span className="dash-dot" />
-
-                          <span>
-                            {
-                              labelStatus(
-                                item.statut,
-                              )
-                            }
-                          </span>
-
-                          <strong>
-                            {
-                              item.total
-                            }
-                          </strong>
-
-                        </div>
-                      ),
-                    )
+                      <strong>
+                        {item.total}
+                      </strong>
+                    </div>
+                  ),
                 )
-              }
+              )}
+            </div>
+          </div>
+        </article>
 
+        <article className="dash-panel">
+          <div className="dash-panel-title">
+            <div>
+              <span>
+                ACTIVITÉ
+              </span>
+
+              <h2>
+                Type de maintenance
+              </h2>
             </div>
 
+            <Wrench size={19} />
           </div>
 
+          <div className="dash-horizontal-list">
+            {data.par_type_maintenance.length === 0 ? (
+              <div className="empty-state">
+                Aucune donnée
+              </div>
+            ) : (
+              data.par_type_maintenance.map(
+                (item) => {
+                  const max =
+                    Math.max(
+                      ...data
+                        .par_type_maintenance
+                        .map(
+                          (x) =>
+                            Number(
+                              x.total || 0,
+                            ),
+                        ),
+                      1,
+                    );
+
+                  const width =
+                    Math.max(
+                      8,
+                      (
+                        Number(
+                          item.total || 0,
+                        ) /
+                        max
+                      ) *
+                        100,
+                    );
+
+                  return (
+                    <div
+                      className="dash-horizontal-item"
+                      key={
+                        item.type_maintenance ||
+                        "maintenance"
+                      }
+                    >
+                      <div className="dash-horizontal-meta">
+                        <span>
+                          {labelMaintenance(
+                            item.type_maintenance,
+                          )}
+                        </span>
+
+                        <strong>
+                          {item.total}
+                        </strong>
+                      </div>
+
+                      <div className="dash-horizontal-track">
+                        <span
+                          style={{
+                            width:
+                              `${width}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                },
+              )
+            )}
+          </div>
         </article>
-
-
-        {/* TYPES DE MAINTENANCE */}
 
         <article className="dash-panel">
-
           <div className="dash-panel-title">
+            <div>
+              <span>
+                PARC INDUSTRIEL
+              </span>
 
-            <h2>
-              Type de maintenance
-            </h2>
+              <h2>
+                Équipements par constructeur
+              </h2>
+            </div>
 
-            <Wrench
-              size={18}
-            />
-
+            <PackageCheck size={19} />
           </div>
 
+          <div className="dash-horizontal-list">
+            {data.par_constructeur.length === 0 ? (
+              <div className="empty-state">
+                Aucune donnée
+              </div>
+            ) : (
+              data.par_constructeur
+                .slice(0, 5)
+                .map(
+                  (item) => {
+                    const max =
+                      Math.max(
+                        ...data
+                          .par_constructeur
+                          .map(
+                            (x) =>
+                              Number(
+                                x.total || 0,
+                              ),
+                          ),
+                        1,
+                      );
 
-          <div className="dash-bars">
+                    const width =
+                      Math.max(
+                        8,
+                        (
+                          Number(
+                            item.total || 0,
+                          ) /
+                          max
+                        ) *
+                          100,
+                      );
 
-            {
-              data
-                .par_type_maintenance
-                .length ===
-              0 ? (
-                <div className="empty-state">
-                  Aucune donnée
-                </div>
-              ) : (
-                data
-                  .par_type_maintenance
-                  .map(
-                    (
-                      item,
-                    ) => {
-                      const max =
-                        Math.max(
-                          ...data
-                            .par_type_maintenance
-                            .map(
-                              (
-                                x,
-                              ) =>
-                                Number(
-                                  x.total ||
-                                    0,
-                                ),
-                            ),
-
-                          1,
-                        );
-
-
-                      const height =
-                        Math.max(
-                          18,
-
-                          (
-                            Number(
-                              item.total ||
-                                0,
-                            ) /
-                            max
-                          ) *
-                            130,
-                        );
-
-
-                      return (
-                        <div
-                          className="dash-bar-item"
-                          key={
-                            item
-                              .type_maintenance ||
-                            "maintenance"
-                          }
-                        >
-
-                          <strong>
-                            {
-                              item.total
-                            }
-                          </strong>
-
-
-                          <div
-                            className="dash-bar"
-                            style={{
-                              height:
-                                `${height}px`,
-                            }}
-                          />
-
-
+                    return (
+                      <div
+                        className="dash-horizontal-item"
+                        key={
+                          item.constructeur ||
+                          "constructeur"
+                        }
+                      >
+                        <div className="dash-horizontal-meta">
                           <span>
-                            {
-                              labelMaintenance(
-                                item
-                                  .type_maintenance,
-                              )
-                            }
+                            {item.constructeur ||
+                              "Non renseigné"}
                           </span>
 
-                        </div>
-                      );
-                    },
-                  )
-              )
-            }
-
-          </div>
-
-        </article>
-
-
-        {/* CONSTRUCTEURS */}
-
-        <article className="dash-panel">
-
-          <div className="dash-panel-title">
-
-            <h2>
-              Équipements par
-              constructeur
-            </h2>
-
-          </div>
-
-
-          <div className="dash-bars">
-
-            {
-              data
-                .par_constructeur
-                .length ===
-              0 ? (
-                <div className="empty-state">
-                  Aucune donnée
-                </div>
-              ) : (
-                data
-                  .par_constructeur
-                  .slice(
-                    0,
-                    5,
-                  )
-                  .map(
-                    (
-                      item,
-                    ) => {
-                      const max =
-                        Math.max(
-                          ...data
-                            .par_constructeur
-                            .map(
-                              (
-                                x,
-                              ) =>
-                                Number(
-                                  x.total ||
-                                    0,
-                                ),
-                            ),
-
-                          1,
-                        );
-
-
-                      const height =
-                        Math.max(
-                          18,
-
-                          (
-                            Number(
-                              item.total ||
-                                0,
-                            ) /
-                            max
-                          ) *
-                            130,
-                        );
-
-
-                      return (
-                        <div
-                          className="dash-bar-item"
-                          key={
-                            item
-                              .constructeur ||
-                            "constructeur"
-                          }
-                        >
-
                           <strong>
-                            {
-                              item.total
-                            }
+                            {item.total}
                           </strong>
+                        </div>
 
-
-                          <div
-                            className="dash-bar"
+                        <div className="dash-horizontal-track">
+                          <span
                             style={{
-                              height:
-                                `${height}px`,
+                              width:
+                                `${width}%`,
                             }}
                           />
-
-
-                          <span>
-                            {
-                              item
-                                .constructeur ||
-                              "Non renseigné"
-                            }
-                          </span>
-
                         </div>
-                      );
-                    },
-                  )
-              )
-            }
-
+                      </div>
+                    );
+                  },
+                )
+            )}
           </div>
-
         </article>
-
       </section>
-
     </div>
   );
 }
