@@ -52,15 +52,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
 
-        {/* AUTHENTIFICATION */}
-
         <Route
           path="/login"
           element={<Login />}
         />
-
-
-        {/* TABLEAU DE BORD */}
 
         <Route
           path="/"
@@ -70,9 +65,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* KPI */}
 
         <Route
           path="/kpi"
@@ -86,9 +78,6 @@ export default function App() {
           }
         />
 
-
-        {/* ÉQUIPEMENTS */}
-
         <Route
           path="/equipements"
           element={
@@ -97,9 +86,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* GAMMES */}
 
         <Route
           path="/gammes"
@@ -112,9 +98,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* WIZARD CRÉATION GAMME */}
 
         <Route
           path="/gammes/nouvelle"
@@ -135,9 +118,6 @@ export default function App() {
           }
         />
 
-
-        {/* VERSIONS */}
-
         <Route
           path="/versions"
           element={
@@ -147,9 +127,6 @@ export default function App() {
           }
         />
 
-
-        {/* PLANS DE MAINTENANCE */}
-
         <Route
           path="/plans-maintenance"
           element={
@@ -158,9 +135,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* EPI */}
 
         <Route
           path="/epis"
@@ -180,9 +154,6 @@ export default function App() {
           }
         />
 
-
-        {/* RISQUES */}
-
         <Route
           path="/risques"
           element={
@@ -200,9 +171,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* OUTILLAGES */}
 
         <Route
           path="/outillages"
@@ -222,9 +190,6 @@ export default function App() {
           }
         />
 
-
-        {/* PIÈCES DE RECHANGE */}
-
         <Route
           path="/pieces"
           element={
@@ -233,9 +198,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* DOCUMENTS */}
 
         <Route
           path="/documents"
@@ -246,9 +208,6 @@ export default function App() {
           }
         />
 
-
-        {/* QR CODES */}
-
         <Route
           path="/qr-codes"
           element={
@@ -258,9 +217,6 @@ export default function App() {
           }
         />
 
-
-        {/* EXPORTS */}
-
         <Route
           path="/exports"
           element={
@@ -269,9 +225,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* PARAMÈTRES */}
 
         <Route
           path="/parametres"
@@ -284,9 +237,6 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-
-
-        {/* ROUTE INCONNUE */}
 
         <Route
           path="*"
