@@ -12,6 +12,26 @@ interface Props {
   compact?: boolean;
 }
 
+function getHeaderString(
+  value: unknown,
+): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item))
+      .join(", ");
+  }
+
+  return undefined;
+}
+
 function filenameFromDisposition(
   disposition: string | undefined,
   fallback: string,
@@ -47,7 +67,11 @@ async function extractBackendError(
     try {
       const text = await responseData.text();
       const parsed = JSON.parse(text);
-      return parsed?.detail || fallback;
+
+      return (
+        parsed?.detail ||
+        fallback
+      );
     } catch {
       return fallback;
     }
@@ -67,7 +91,11 @@ export default function ExportButtons({
   const [
     loading,
     setLoading,
-  ] = useState<"pdf" | "word" | null>(null);
+  ] = useState<
+    "pdf" |
+    "word" |
+    null
+  >(null);
 
   const [
     error,
@@ -81,63 +109,110 @@ export default function ExportButtons({
       setLoading(type);
       setError("");
 
-      const response = await api.post(
-        `/versions/${versionId}/export_${type}/`,
-        {},
-        {
-          responseType: "blob",
-        },
-      );
+      const response =
+        await api.post(
+          `/versions/${versionId}/export_${type}/`,
+          {},
+          {
+            responseType: "blob",
+          },
+        );
 
       const fallback =
         type === "pdf"
           ? `gamme_${versionId}.pdf`
           : `gamme_${versionId}.docx`;
 
-      const filename = filenameFromDisposition(
-        response.headers["content-disposition"],
-        fallback,
+      const contentDisposition =
+        getHeaderString(
+          response.headers[
+            "content-disposition"
+          ],
+        );
+
+      const contentType =
+        getHeaderString(
+          response.headers[
+            "content-type"
+          ],
+        );
+
+      const filename =
+        filenameFromDisposition(
+          contentDisposition,
+          fallback,
+        );
+
+      const blob =
+        new Blob(
+          [response.data],
+          {
+            type:
+              contentType ||
+              (
+                type === "pdf"
+                  ? "application/pdf"
+                  : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              ),
+          },
+        );
+
+      const objectUrl =
+        URL.createObjectURL(
+          blob,
+        );
+
+      const link =
+        document.createElement(
+          "a",
+        );
+
+      link.href =
+        objectUrl;
+
+      link.download =
+        filename;
+
+      link.style.display =
+        "none";
+
+      document.body.appendChild(
+        link,
       );
 
-      const blob = new Blob(
-        [response.data],
-        {
-          type:
-            response.headers["content-type"] ||
-            (type === "pdf"
-              ? "application/pdf"
-              : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        },
-      );
-
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = objectUrl;
-      link.download = filename;
-      link.style.display = "none";
-
-      document.body.appendChild(link);
       link.click();
+
       link.remove();
 
       window.setTimeout(
-        () => URL.revokeObjectURL(objectUrl),
+        () =>
+          URL.revokeObjectURL(
+            objectUrl,
+          ),
         1500,
       );
-    } catch (err: any) {
-      console.error(err);
-
-      const message = await extractBackendError(
+    } catch (
+      err: any
+    ) {
+      console.error(
         err,
-        type === "pdf"
-          ? "Erreur lors de la génération du PDF."
-          : "Erreur lors de la génération du document Word.",
       );
 
-      setError(message);
+      const message =
+        await extractBackendError(
+          err,
+          type === "pdf"
+            ? "Erreur lors de la génération du PDF."
+            : "Erreur lors de la génération du document Word.",
+        );
+
+      setError(
+        message,
+      );
     } finally {
-      setLoading(null);
+      setLoading(
+        null,
+      );
     }
   };
 
@@ -152,44 +227,74 @@ export default function ExportButtons({
       <button
         className="module-button module-button-pdf"
         type="button"
-        disabled={loading !== null}
-        onClick={() => void run("pdf")}
+        disabled={
+          loading !== null
+        }
+        onClick={() =>
+          void run(
+            "pdf",
+          )
+        }
       >
-        {loading === "pdf" ? (
-          <LoaderCircle
-            className="spin"
-            size={18}
-          />
-        ) : (
-          <FileDown size={18} />
-        )}
+        {
+          loading ===
+          "pdf" ? (
+            <LoaderCircle
+              className="spin"
+              size={18}
+            />
+          ) : (
+            <FileDown
+              size={18}
+            />
+          )
+        }
 
-        {!compact && "PDF"}
+        {
+          !compact &&
+          "PDF"
+        }
       </button>
 
       <button
         className="module-button module-button-word"
         type="button"
-        disabled={loading !== null}
-        onClick={() => void run("word")}
+        disabled={
+          loading !== null
+        }
+        onClick={() =>
+          void run(
+            "word",
+          )
+        }
       >
-        {loading === "word" ? (
-          <LoaderCircle
-            className="spin"
-            size={18}
-          />
-        ) : (
-          <FileText size={18} />
-        )}
+        {
+          loading ===
+          "word" ? (
+            <LoaderCircle
+              className="spin"
+              size={18}
+            />
+          ) : (
+            <FileText
+              size={18}
+            />
+          )
+        }
 
-        {!compact && "Word"}
+        {
+          !compact &&
+          "Word"
+        }
       </button>
 
-      {error && (
-        <span className="export-error">
-          {error}
-        </span>
-      )}
+      {
+        error && (
+          <span className="export-error">
+            {error}
+          </span>
+        )
+      }
     </div>
   );
 }
