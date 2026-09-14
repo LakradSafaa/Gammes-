@@ -1,312 +1,500 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-import { Edit3, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
-
 import api from "../../api/axios";
-import { extractResults } from "../gammes/types";
-import type { PaginatedResponse } from "../gammes/types";
-import "./ReferentielPage.css";
+
+type DisplayMode = "list" | "cards" | "table";
 
 type FieldConfig = {
   name: string;
   label: string;
-  type?: "text" | "textarea";
+  type?: "text" | "number" | "textarea" | "url";
   required?: boolean;
   placeholder?: string;
 };
 
-type RecordItem = {
+type ReferentielItem = {
   id: string;
   [key: string]: unknown;
 };
 
 type Props = {
   title: string;
-  subtitle: string;
+  subtitle?: string;
+
   endpoint: string;
-  fields: FieldConfig[];
+
   primaryField: string;
+
   secondaryFields?: string[];
+
+  imageField?: string;
+
+  displayMode?: DisplayMode;
+
+  fields: FieldConfig[];
 };
 
 export default function ReferentielPage({
   title,
   subtitle,
   endpoint,
-  fields,
   primaryField,
   secondaryFields = [],
+  imageField,
+  displayMode = "list",
+  fields,
 }: Props) {
-  const [items, setItems] = useState<RecordItem[]>([]);
-  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<ReferentielItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<RecordItem | null>(null);
-  const [form, setForm] = useState<Record<string, string>>({});
 
-  const normalizedEndpoint = endpoint.endsWith("/") ? endpoint.slice(0, -1) : endpoint;
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const emptyForm = () => Object.fromEntries(fields.map((field) => [field.name, ""]));
+  const initialForm = useMemo(() => {
+    const data: Record<string, string> = {};
 
-  const load = async () => {
+    fields.forEach((field) => {
+      data[field.name] = "";
+    });
+
+    return data;
+  }, [fields]);
+
+  const [form, setForm] = useState<Record<string, string>>(initialForm);
+
+  useEffect(() => {
+    setForm(initialForm);
+  }, [initialForm]);
+
+  const loadItems = async () => {
     try {
       setLoading(true);
-      setError("");
-      const response = await api.get<RecordItem[] | PaginatedResponse<RecordItem>>(
-        `${normalizedEndpoint}/`,
-      );
-      setItems(extractResults(response.data));
-    } catch (err) {
-      console.error(err);
-      setError(`Impossible de charger ${title.toLowerCase()}.`);
+
+      const response = await api.get(endpoint);
+
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.results ?? [];
+
+      setItems(data);
+    } catch (error) {
+      console.error(`Erreur chargement ${title}`, error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void load();
-  }, [normalizedEndpoint]);
+    loadItems();
+  }, [endpoint]);
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return items;
-
-    return items.filter((item) =>
-      Object.values(item).some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(needle),
-      ),
-    );
-  }, [items, query]);
-
-  const startCreate = () => {
-    setEditing(null);
-    setForm(emptyForm());
-    setError("");
-    setMessage("");
-    setOpen(true);
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(initialForm);
   };
 
-  const startEdit = (item: RecordItem) => {
-    setEditing(item);
-    setForm(
-      Object.fromEntries(
-        fields.map((field) => [field.name, String(item[field.name] ?? "")]),
-      ),
-    );
-    setError("");
-    setMessage("");
-    setOpen(true);
+  const handleChange = (
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleEdit = (item: ReferentielItem) => {
+    const nextForm: Record<string, string> = {};
+
+    fields.forEach((field) => {
+      const value = item[field.name];
+
+      nextForm[field.name] =
+        value === undefined || value === null ? "" : String(value);
+    });
+
+    setEditingId(item.id);
+    setForm(nextForm);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    for (const field of fields) {
-      if (field.required && !String(form[field.name] ?? "").trim()) {
-        setError(`${field.label} est obligatoire.`);
-        return;
-      }
-    }
-
-    const payload = Object.fromEntries(
-      fields.map((field) => {
-        const value = String(form[field.name] ?? "").trim();
-        return [field.name, value || null];
-      }),
-    );
 
     try {
       setSaving(true);
-      setError("");
-      setMessage("");
 
-      if (editing) {
-        await api.patch(`${normalizedEndpoint}/${editing.id}/`, payload);
-        setMessage("Élément modifié avec succès.");
+      const payload: Record<string, unknown> = {};
+
+      fields.forEach((field) => {
+        const value = form[field.name];
+
+        if (field.type === "number") {
+          payload[field.name] =
+            value === "" || value === undefined ? null : Number(value);
+        } else {
+          payload[field.name] = value;
+        }
+      });
+
+      if (editingId) {
+        await api.patch(`${endpoint}${editingId}/`, payload);
       } else {
-        await api.post(`${normalizedEndpoint}/`, payload);
-        setMessage("Élément ajouté avec succès.");
+        await api.post(endpoint, payload);
       }
 
-      setOpen(false);
-      await load();
-    } catch (err: any) {
-      console.error(err);
-      const response = err?.response?.data;
-      const firstFieldError =
-        response && typeof response === "object"
-          ? Object.values(response).find((value) => Array.isArray(value))
-          : null;
-
-      setError(
-        response?.detail ||
-          (Array.isArray(firstFieldError) ? String(firstFieldError[0]) : "") ||
-          "Enregistrement impossible. Vérifiez vos droits et les données saisies.",
-      );
+      resetForm();
+      await loadItems();
+    } catch (error) {
+      console.error(`Erreur enregistrement ${title}`, error);
+      alert("Impossible d'enregistrer cette valeur.");
     } finally {
       setSaving(false);
     }
   };
 
-  const remove = async (item: RecordItem) => {
-    const name = String(item[primaryField] ?? "cet élément");
-    if (!window.confirm(`Supprimer « ${name} » ?`)) return;
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm(
+      "Voulez-vous vraiment supprimer cet élément ?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
-      setError("");
-      setMessage("");
-      await api.delete(`${normalizedEndpoint}/${item.id}/`);
-      setItems((current) => current.filter((row) => row.id !== item.id));
-      setMessage("Élément supprimé.");
-    } catch (err: any) {
-      console.error(err);
-      setError(
-        err?.response?.data?.detail ||
-          "Suppression impossible. Cet élément peut déjà être utilisé par une gamme.",
+      await api.delete(`${endpoint}${id}/`);
+
+      if (editingId === id) {
+        resetForm();
+      }
+
+      await loadItems();
+    } catch (error) {
+      console.error(`Erreur suppression ${title}`, error);
+
+      alert(
+        "Suppression impossible. Cet élément est peut-être déjà utilisé dans une gamme."
       );
     }
   };
 
+  const getValue = (item: ReferentielItem, fieldName: string) => {
+    const value = item[fieldName];
+
+    if (value === undefined || value === null) {
+      return "";
+    }
+
+    return String(value);
+  };
+
   return (
-    <div className="ref-page">
-      <header className="ref-header">
-        <div>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
-        </div>
-        <button className="ref-primary" type="button" onClick={startCreate}>
-          <Plus size={18} /> Ajouter
-        </button>
-      </header>
+    <div
+      style={{
+        width: "100%",
+        padding: "24px",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          marginBottom: "24px",
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            color: "#172B2A",
+            fontSize: "28px",
+            fontWeight: 700,
+          }}
+        >
+          {title}
+        </h1>
 
-      {error && <div className="module-error">{error}</div>}
-      {message && <div className="module-success">{message}</div>}
-
-      <section className="ref-card">
-        <div className="ref-toolbar">
-          <div className="ref-search">
-            <Search size={17} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Rechercher..."
-            />
-          </div>
-          <span>{filtered.length} élément(s)</span>
-        </div>
-
-        {loading ? (
-          <div className="module-loading">
-            <LoaderCircle className="spin" size={22} />
-            <strong>Chargement...</strong>
-          </div>
-        ) : (
-          <div className="ref-list">
-            {filtered.length === 0 ? (
-              <div className="ref-empty">Aucun élément.</div>
-            ) : (
-              filtered.map((item) => (
-                <article key={item.id} className="ref-row">
-                  <div className="ref-main">
-                    <strong>{String(item[primaryField] ?? "—")}</strong>
-                    <div>
-                      {secondaryFields.map((field) =>
-                        item[field] ? <span key={field}>{String(item[field])}</span> : null,
-                      )}
-                    </div>
-                  </div>
-                  <div className="ref-actions">
-                    <button type="button" title="Modifier" onClick={() => startEdit(item)}>
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      title="Supprimer"
-                      onClick={() => void remove(item)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        )}
-      </section>
-
-      {open && (
-        <div className="ref-modal-backdrop" onMouseDown={() => !saving && setOpen(false)}>
-          <form
-            className="ref-modal"
-            onSubmit={submit}
-            onMouseDown={(event) => event.stopPropagation()}
+        {subtitle && (
+          <p
+            style={{
+              marginTop: "8px",
+              color: "#64748B",
+            }}
           >
-            <div className="ref-modal-head">
-              <div>
-                <h2>{editing ? "Modifier" : "Ajouter"} — {title}</h2>
-                <p>Complétez les informations puis enregistrez.</p>
-              </div>
-              <button type="button" onClick={() => setOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
+            {subtitle}
+          </p>
+        )}
+      </div>
 
-            <div className="ref-form">
-              {fields.map((field) => (
-                <label key={field.name}>
-                  <span>
-                    {field.label}
-                    {field.required ? " *" : ""}
-                  </span>
-                  {field.type === "textarea" ? (
-                    <textarea
-                      rows={4}
-                      required={field.required}
-                      value={form[field.name] ?? ""}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          [field.name]: event.target.value,
-                        }))
-                      }
-                      placeholder={field.placeholder}
-                    />
-                  ) : (
-                    <input
-                      required={field.required}
-                      value={form[field.name] ?? ""}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          [field.name]: event.target.value,
-                        }))
-                      }
-                      placeholder={field.placeholder}
-                    />
-                  )}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #DDE7E3",
+          borderRadius: "14px",
+          padding: "22px",
+          marginBottom: "24px",
+        }}
+      >
+        <h2
+          style={{
+            marginTop: 0,
+            marginBottom: "18px",
+            color: "#172B2A",
+            fontSize: "18px",
+          }}
+        >
+          {editingId ? "Modifier" : "Ajouter"}
+        </h2>
+
+        <form onSubmit={handleSubmit}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {fields.map((field) => (
+              <div key={field.name}>
+                <label
+                  htmlFor={field.name}
+                  style={{
+                    display: "block",
+                    marginBottom: "6px",
+                    fontWeight: 600,
+                    color: "#172B2A",
+                  }}
+                >
+                  {field.label}
+                  {field.required ? " *" : ""}
                 </label>
-              ))}
-            </div>
 
-            <div className="ref-modal-actions">
-              <button type="button" className="ref-secondary" onClick={() => setOpen(false)}>
+                {field.type === "textarea" ? (
+                  <textarea
+                    id={field.name}
+                    name={field.name}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                    value={form[field.name] ?? ""}
+                    onChange={handleChange}
+                    rows={4}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid #DDE7E3",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                ) : (
+                  <input
+                    id={field.name}
+                    name={field.name}
+                    type={field.type ?? "text"}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                    value={form[field.name] ?? ""}
+                    onChange={handleChange}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid #DDE7E3",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                border: 0,
+                borderRadius: "8px",
+                padding: "10px 18px",
+                background: "#00966D",
+                color: "#FFFFFF",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {saving
+                ? "Enregistrement..."
+                : editingId
+                ? "Enregistrer"
+                : "+ Ajouter"}
+            </button>
+
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                style={{
+                  border: "1px solid #DDE7E3",
+                  borderRadius: "8px",
+                  padding: "10px 18px",
+                  background: "#FFFFFF",
+                  cursor: "pointer",
+                }}
+              >
                 Annuler
               </button>
-              <button type="submit" className="ref-primary" disabled={saving}>
-                {saving ? <LoaderCircle className="spin" size={17} /> : null}
-                Enregistrer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            )}
+          </div>
+        </form>
+      </div>
+
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #DDE7E3",
+          borderRadius: "14px",
+          padding: "22px",
+        }}
+      >
+        {loading ? (
+          <p>Chargement...</p>
+        ) : items.length === 0 ? (
+          <p
+            style={{
+              color: "#64748B",
+            }}
+          >
+            Aucun élément enregistré.
+          </p>
+        ) : (
+          <div
+            style={
+              displayMode === "cards"
+                ? {
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(260px, 1fr))",
+                    gap: "16px",
+                  }
+                : {
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }
+            }
+          >
+            {items.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  border: "1px solid #DDE7E3",
+                  borderRadius: "10px",
+                  padding: "14px",
+                  background: "#FFFFFF",
+                }}
+              >
+                {imageField && getValue(item, imageField) && (
+                  <img
+                    src={getValue(item, imageField)}
+                    alt={getValue(item, primaryField)}
+                    style={{
+                      width: "56px",
+                      height: "56px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                      border: "1px solid #DDE7E3",
+                    }}
+                  />
+                )}
+
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "#172B2A",
+                    }}
+                  >
+                    {getValue(item, primaryField)}
+                  </div>
+
+                  {secondaryFields.map((fieldName) => {
+                    const value = getValue(item, fieldName);
+
+                    if (!value) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={fieldName}
+                        style={{
+                          color: "#64748B",
+                          fontSize: "14px",
+                          marginTop: "3px",
+                        }}
+                      >
+                        {value}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleEdit(item)}
+                  style={{
+                    border: "1px solid #00966D",
+                    borderRadius: "7px",
+                    padding: "7px 12px",
+                    background: "#FFFFFF",
+                    color: "#007F5F",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Modifier
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item.id)}
+                  style={{
+                    border: "1px solid #DC3545",
+                    borderRadius: "7px",
+                    padding: "7px 12px",
+                    background: "#FFFFFF",
+                    color: "#DC3545",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Supprimer
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
