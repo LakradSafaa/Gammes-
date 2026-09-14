@@ -20,12 +20,12 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
-    "change-me-in-production"
+    "change-me-in-production",
 )
 
 DEBUG = os.getenv(
     "DEBUG",
-    "True"
+    "True",
 ).lower() == "true"
 
 
@@ -33,20 +33,41 @@ DEBUG = os.getenv(
 # ALLOWED HOSTS
 # ============================================================
 
+# Hôtes toujours autorisés
 ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    ".vercel.app",
+]
+
+# Hôtes supplémentaires définis dans l'environnement
+extra_allowed_hosts = [
     host.strip()
-    for host in os.getenv(
-        "ALLOWED_HOSTS",
-        "127.0.0.1,localhost,.vercel.app"
-    ).split(",")
+    for host in os.getenv("ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
 
-# Vercel fournit automatiquement VERCEL_URL
-VERCEL_URL = os.getenv("VERCEL_URL")
+for host in extra_allowed_hosts:
+    # ALLOWED_HOSTS ne doit pas contenir https:// ou http://
+    host = host.replace("https://", "").replace("http://", "").rstrip("/")
 
-if VERCEL_URL and VERCEL_URL not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(VERCEL_URL)
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
+
+# Vercel fournit automatiquement VERCEL_URL
+VERCEL_URL = os.getenv("VERCEL_URL", "").strip()
+
+if VERCEL_URL:
+    vercel_host = (
+        VERCEL_URL
+        .replace("https://", "")
+        .replace("http://", "")
+        .rstrip("/")
+    )
+
+    if vercel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(vercel_host)
 
 
 # ============================================================
@@ -134,33 +155,33 @@ DATABASES = {
 
         "NAME": os.getenv(
             "DB_NAME",
-            "gammes_maintenance"
+            "gammes_maintenance",
         ),
 
         "USER": os.getenv(
             "DB_USER",
-            "postgres"
+            "postgres",
         ),
 
         "PASSWORD": os.getenv(
             "DB_PASSWORD",
-            "postgres"
+            "postgres",
         ),
 
         "HOST": os.getenv(
             "DB_HOST",
-            "127.0.0.1"
+            "127.0.0.1",
         ),
 
         "PORT": os.getenv(
             "DB_PORT",
-            "5432"
+            "5432",
         ),
 
         "CONN_MAX_AGE": 60,
 
         "OPTIONS": {
-            "sslmode": "require"
+            "sslmode": "require",
         },
     }
 }
@@ -198,7 +219,7 @@ LANGUAGE_CODE = "fr-fr"
 
 TIME_ZONE = os.getenv(
     "TIME_ZONE",
-    "Europe/Paris"
+    "Europe/Paris",
 )
 
 USE_I18N = True
@@ -229,12 +250,12 @@ CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173"
+        "http://localhost:5173",
     ).split(",")
     if origin.strip()
 ]
 
-# Permet les URLs Vercel Preview
+# Toutes les Preview URLs Vercel
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
 ]
@@ -248,12 +269,18 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CSRF_TRUSTED_ORIGINS",
-        "http://localhost:5173"
+        "http://localhost:5173",
     ).split(",")
     if origin.strip()
 ]
 
-# URLs Vercel dynamiques
+# Domaine production
+if "https://gammes-tawny.vercel.app" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(
+        "https://gammes-tawny.vercel.app"
+    )
+
+# Toutes les Preview URLs Vercel
 if "https://*.vercel.app" not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(
         "https://*.vercel.app"
@@ -266,8 +293,10 @@ if "https://*.vercel.app" not in CSRF_TRUSTED_ORIGINS:
 
 SECURE_PROXY_SSL_HEADER = (
     "HTTP_X_FORWARDED_PROTO",
-    "https"
+    "https",
 )
+
+USE_X_FORWARDED_HOST = True
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
@@ -324,5 +353,5 @@ SIMPLE_JWT = {
 
 APP_BASE_URL = os.getenv(
     "APP_BASE_URL",
-    "http://localhost:5173"
+    "http://localhost:5173",
 )
