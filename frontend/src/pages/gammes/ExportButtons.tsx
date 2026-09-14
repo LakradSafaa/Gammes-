@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   FileDown,
   FileText,
@@ -7,82 +8,61 @@ import {
 
 import api from "../../api/axios";
 
+
 interface Props {
   versionId: string;
   compact?: boolean;
 }
 
-function getHeaderString(
-  value: unknown,
-): string | undefined {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item))
-      .join(", ");
-  }
-
-  return undefined;
-}
-
-function filenameFromDisposition(
-  disposition: string | undefined,
-  fallback: string,
-) {
-  if (!disposition) {
-    return fallback;
-  }
-
-  const utf8Match = disposition.match(
-    /filename\*=UTF-8''([^;]+)/i,
-  );
-
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(
-      utf8Match[1].replace(/["']/g, ""),
-    );
-  }
-
-  const simpleMatch = disposition.match(
-    /filename="?([^";]+)"?/i,
-  );
-
-  return simpleMatch?.[1] || fallback;
-}
 
 async function extractBackendError(
   error: any,
-  fallback: string,
-) {
-  const responseData = error?.response?.data;
+  fallbackMessage: string,
+): Promise<string> {
+  const responseData =
+    error?.response?.data;
 
-  if (responseData instanceof Blob) {
+  if (
+    responseData instanceof Blob
+  ) {
     try {
-      const text = await responseData.text();
-      const parsed = JSON.parse(text);
+      const text =
+        await responseData.text();
 
-      return (
-        parsed?.detail ||
-        fallback
-      );
+      const parsed =
+        JSON.parse(text);
+
+      if (
+        parsed?.detail
+      ) {
+        return String(
+          parsed.detail,
+        );
+      }
     } catch {
-      return fallback;
+      return fallbackMessage;
     }
   }
 
-  return (
-    responseData?.detail ||
-    error?.message ||
-    fallback
-  );
+  if (
+    responseData?.detail
+  ) {
+    return String(
+      responseData.detail,
+    );
+  }
+
+  if (
+    error?.message
+  ) {
+    return String(
+      error.message,
+    );
+  }
+
+  return fallbackMessage;
 }
+
 
 export default function ExportButtons({
   versionId,
@@ -102,70 +82,72 @@ export default function ExportButtons({
     setError,
   ] = useState("");
 
+
   const run = async (
-    type: "pdf" | "word",
+    type:
+      | "pdf"
+      | "word",
   ) => {
     try {
-      setLoading(type);
+      setLoading(
+        type,
+      );
+
       setError("");
+
 
       const response =
         await api.post(
           `/versions/${versionId}/export_${type}/`,
           {},
           {
-            responseType: "blob",
+            responseType:
+              "blob",
           },
         );
 
-      const fallback =
+
+      const mimeType =
         type === "pdf"
-          ? `gamme_${versionId}.pdf`
-          : `gamme_${versionId}.docx`;
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-      const contentDisposition =
-        getHeaderString(
-          response.headers[
-            "content-disposition"
-          ],
-        );
 
-      const contentType =
-        getHeaderString(
-          response.headers[
-            "content-type"
-          ],
-        );
+      const extension =
+        type === "pdf"
+          ? "pdf"
+          : "docx";
+
 
       const filename =
-        filenameFromDisposition(
-          contentDisposition,
-          fallback,
-        );
+        `gamme_${versionId}.${extension}`;
+
 
       const blob =
         new Blob(
-          [response.data],
+          [
+            response.data,
+          ],
           {
             type:
-              contentType ||
-              (
-                type === "pdf"
-                  ? "application/pdf"
-                  : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              ),
+              mimeType,
           },
         );
 
+
       const objectUrl =
-        URL.createObjectURL(
-          blob,
-        );
+        window.URL
+          .createObjectURL(
+            blob,
+          );
+
 
       const link =
-        document.createElement(
-          "a",
-        );
+        document
+          .createElement(
+            "a",
+          );
+
 
       link.href =
         objectUrl;
@@ -176,35 +158,44 @@ export default function ExportButtons({
       link.style.display =
         "none";
 
-      document.body.appendChild(
-        link,
-      );
+
+      document.body
+        .appendChild(
+          link,
+        );
+
 
       link.click();
 
+
       link.remove();
 
+
       window.setTimeout(
-        () =>
-          URL.revokeObjectURL(
-            objectUrl,
-          ),
+        () => {
+          window.URL
+            .revokeObjectURL(
+              objectUrl,
+            );
+        },
         1500,
       );
     } catch (
-      err: any
+      e: any
     ) {
       console.error(
-        err,
+        e,
       );
+
 
       const message =
         await extractBackendError(
-          err,
+          e,
           type === "pdf"
             ? "Erreur lors de la génération du PDF."
             : "Erreur lors de la génération du document Word.",
         );
+
 
       setError(
         message,
@@ -215,6 +206,7 @@ export default function ExportButtons({
       );
     }
   };
+
 
   return (
     <div
@@ -238,16 +230,18 @@ export default function ExportButtons({
       >
         {
           loading ===
-          "pdf" ? (
-            <LoaderCircle
-              className="spin"
-              size={18}
-            />
-          ) : (
-            <FileDown
-              size={18}
-            />
-          )
+          "pdf"
+            ? (
+              <LoaderCircle
+                className="spin"
+                size={18}
+              />
+            )
+            : (
+              <FileDown
+                size={18}
+              />
+            )
         }
 
         {
@@ -255,6 +249,7 @@ export default function ExportButtons({
           "PDF"
         }
       </button>
+
 
       <button
         className="module-button module-button-word"
@@ -270,16 +265,18 @@ export default function ExportButtons({
       >
         {
           loading ===
-          "word" ? (
-            <LoaderCircle
-              className="spin"
-              size={18}
-            />
-          ) : (
-            <FileText
-              size={18}
-            />
-          )
+          "word"
+            ? (
+              <LoaderCircle
+                className="spin"
+                size={18}
+              />
+            )
+            : (
+              <FileText
+                size={18}
+              />
+            )
         }
 
         {
@@ -288,9 +285,12 @@ export default function ExportButtons({
         }
       </button>
 
+
       {
         error && (
-          <span className="export-error">
+          <span
+            className="export-error"
+          >
             {error}
           </span>
         )
