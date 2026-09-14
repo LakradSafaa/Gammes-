@@ -1,1 +1,357 @@
-.refs-page{width:100%;color:#172B2A}.refs-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px}.refs-header h1{margin:4px 0 6px;font-size:30px;color:#063D32}.refs-header p{margin:0;max-width:760px;color:#64748b}.refs-kicker{display:inline-flex!important;padding:5px 9px;border-radius:6px;background:#DDF7EE;color:#007F5F!important;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.refs-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px}.refs-categories,.refs-card{border:1px solid #DDE7E3;border-radius:14px;background:#fff;box-shadow:0 4px 16px rgba(6,61,50,.05)}.refs-categories{padding:12px;height:max-content;position:sticky;top:88px}.refs-categories h2{margin:4px 8px 10px;font-size:14px;color:#063D32}.refs-category{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px;border:0;border-radius:9px;background:transparent;color:#172B2A;text-align:left;cursor:pointer}.refs-category:hover{background:#F1FBF7}.refs-category.active{background:#DDF7EE;color:#007F5F}.refs-category span{font-weight:750}.refs-category small{font-size:10px;color:#7b8e89}.refs-content{display:flex;flex-direction:column;gap:14px;min-width:0}.refs-card{padding:18px}.refs-toolbar-card{display:flex;justify-content:space-between;align-items:center;gap:16px}.refs-toolbar-card h2,.refs-card h2{margin:0 0 4px;color:#063D32}.refs-toolbar-card p,.refs-card p{margin:0;color:#64748b}.refs-primary-button,.refs-secondary-button,.refs-primary-link{min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;border-radius:8px;font-weight:750;text-decoration:none;cursor:pointer}.refs-primary-button,.refs-primary-link{border:0;background:#00966D;color:#fff}.refs-primary-button:hover,.refs-primary-link:hover{background:#007F5F}.refs-secondary-button{border:1px solid #DDE7E3;background:#fff;color:#35514c}.refs-primary-button:disabled{opacity:.55;cursor:not-allowed}.refs-alert{padding:11px 13px;border-radius:9px;font-size:13px}.refs-alert.error{background:#fff1f2;color:#b4232f;border:1px solid #fecdd3}.refs-alert.success{background:#F1FBF7;color:#007F5F;border:1px solid #bfeedd}.refs-editor-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.refs-editor-header h3{margin:0;color:#063D32}.refs-icon-button{border:0;background:transparent;color:#60766f;cursor:pointer}.refs-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.refs-form-grid label{display:flex;flex-direction:column;gap:6px}.refs-form-grid label span{font-size:12px;font-weight:750;color:#4d635d}.refs-form-grid input{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #DDE7E3;border-radius:8px;outline:none;color:#172B2A}.refs-form-grid input:focus{border-color:#00A878;box-shadow:0 0 0 3px rgba(0,168,120,.11)}.refs-checkbox-label{flex-direction:row!important;align-items:center;align-self:end;min-height:40px}.refs-checkbox-label input{width:auto}.refs-editor-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}.refs-table-card{padding:0;overflow:hidden}.refs-table-wrap{overflow:auto}.refs-table-wrap table{width:100%;border-collapse:collapse}.refs-table-wrap th,.refs-table-wrap td{padding:12px 14px;border-bottom:1px solid #edf2f0;text-align:left;white-space:nowrap}.refs-table-wrap th{background:#F6F8FA;color:#4f655f;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.refs-table-wrap td{font-size:13px}.refs-table-wrap code{padding:3px 6px;border-radius:5px;background:#F1FBF7;color:#007F5F}.refs-status{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}.refs-status.active{background:#DDF7EE;color:#007F5F}.refs-status.inactive{background:#f1f5f4;color:#71817d}.refs-actions{display:flex;align-items:center;gap:5px}.refs-actions button{width:32px;height:32px;display:grid;place-items:center;border:1px solid #DDE7E3;border-radius:7px;background:#fff;color:#48615b;cursor:pointer}.refs-actions button:hover{background:#F1FBF7;color:#007F5F}.refs-actions button.danger:hover{background:#fff1f2;color:#DC3545;border-color:#fecdd3}.refs-empty{text-align:center!important;color:#8b9a96;padding:28px!important}.refs-loading{min-height:280px;display:flex;align-items:center;justify-content:center;gap:10px;color:#60766f}.spin{animation:refs-spin .9s linear infinite}@keyframes refs-spin{to{transform:rotate(360deg)}}@media(max-width:900px){.refs-layout{grid-template-columns:1fr}.refs-categories{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.refs-categories h2{grid-column:1/-1}.refs-form-grid{grid-template-columns:1fr}}@media(max-width:620px){.refs-header,.refs-toolbar-card{flex-direction:column;align-items:stretch}.refs-categories{grid-template-columns:1fr}}
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import api from "../../api/axios";
+
+type PaginatedResponse<T> = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results: T[];
+};
+
+type RefValue = {
+  id: string;
+  categorie: string;
+  code: string;
+  libelle: string;
+  ordre?: number;
+  actif?: boolean;
+};
+
+const CATEGORIES = [
+  { code: "corps_metier", label: "Corps de métier" },
+  { code: "type_maintenance", label: "Type de maintenance" },
+  { code: "periodicite", label: "Périodicité" },
+  { code: "type_arret", label: "Type d'arrêt" },
+  { code: "profil", label: "Profil" },
+  { code: "statut_gamme", label: "Statut de la gamme" },
+  { code: "type_redaction", label: "Type de rédaction" },
+];
+
+function extractResults<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+function makeCode(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export default function ReferentielsManagerPage() {
+  const [categorie, setCategorie] = useState(CATEGORIES[0].code);
+  const [items, setItems] = useState<RefValue[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ code: "", libelle: "", ordre: 0 });
+  const [error, setError] = useState("");
+
+  const currentCategory = useMemo(
+    () => CATEGORIES.find((item) => item.code === categorie) ?? CATEGORIES[0],
+    [categorie],
+  );
+
+  const loadItems = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get<RefValue[] | PaginatedResponse<RefValue>>(
+        `/v2/referentiels/?categorie=${encodeURIComponent(categorie)}&include_inactive=true`,
+      );
+
+      setItems(
+        extractResults(response.data)
+          .filter((item) => item && item.categorie === categorie)
+          .slice()
+          .sort((a, b) => {
+            const order = Number(a.ordre ?? 0) - Number(b.ordre ?? 0);
+            return order !== 0 ? order : a.libelle.localeCompare(b.libelle, "fr");
+          }),
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Impossible de charger cette liste.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadItems();
+  }, [categorie]);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({ code: "", libelle: "", ordre: 0 });
+    setError("");
+  };
+
+  const startEdit = (item: RefValue) => {
+    setEditingId(item.id);
+    setForm({
+      code: item.code,
+      libelle: item.libelle,
+      ordre: Number(item.ordre ?? 0),
+    });
+    setError("");
+  };
+
+  const saveItem = async () => {
+    const libelle = form.libelle.trim();
+
+    if (!libelle) {
+      setError("Le libellé est obligatoire.");
+      return;
+    }
+
+    const payload = {
+      categorie,
+      code: form.code.trim() || makeCode(libelle),
+      libelle,
+      ordre: Number(form.ordre) || 0,
+      actif: true,
+    };
+
+    setSaving(true);
+    setError("");
+
+    try {
+      if (editingId) {
+        await api.patch(`/v2/referentiels/${editingId}/`, payload);
+      } else {
+        await api.post("/v2/referentiels/", payload);
+      }
+
+      resetForm();
+      await loadItems();
+    } catch (err: any) {
+      console.error(err);
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.code?.[0] ||
+        err?.response?.data?.libelle?.[0];
+
+      setError(
+        typeof detail === "string"
+          ? detail
+          : "Impossible d'enregistrer la valeur.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteItem = async (item: RefValue) => {
+    if (!window.confirm(`Supprimer « ${item.libelle} » ?`)) return;
+
+    try {
+      await api.delete(`/v2/referentiels/${item.id}/`);
+      if (editingId === item.id) resetForm();
+      await loadItems();
+    } catch (err) {
+      console.error(err);
+      setError("Impossible de supprimer cette valeur.");
+    }
+  };
+
+  return (
+    <div style={{ width: "100%", color: "#172B2A" }}>
+      <div style={{ marginBottom: 22 }}>
+        <p style={{ margin: 0, color: "#007F5F", fontWeight: 800, fontSize: 12 }}>
+          Administration
+        </p>
+        <h1 style={{ margin: "6px 0", color: "#063D32" }}>Listes déroulantes</h1>
+        <p style={{ margin: 0, color: "#64748B" }}>
+          Ajouter, modifier ou supprimer les valeurs utilisées dans les formulaires.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0,1fr)", gap: 18 }}>
+        <aside style={{ padding: 10, border: "1px solid #DDE7E3", borderRadius: 14, background: "#FFF" }}>
+          {CATEGORIES.map((item) => (
+            <button
+              key={item.code}
+              type="button"
+              onClick={() => {
+                setCategorie(item.code);
+                resetForm();
+              }}
+              style={{
+                width: "100%",
+                border: 0,
+                borderRadius: 9,
+                padding: "11px 12px",
+                marginBottom: 5,
+                background: categorie === item.code ? "#DDF7EE" : "transparent",
+                color: categorie === item.code ? "#007F5F" : "#405A55",
+                fontWeight: categorie === item.code ? 800 : 650,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </aside>
+
+        <main>
+          <section style={{ padding: 20, border: "1px solid #DDE7E3", borderRadius: 14, background: "#FFF", marginBottom: 18 }}>
+            <h2 style={{ margin: "0 0 16px", color: "#063D32" }}>
+              {editingId ? "Modifier" : "Ajouter"} — {currentCategory.label}
+            </h2>
+
+            {error && (
+              <div style={{ marginBottom: 14, padding: 11, border: "1px solid #FECDD3", borderRadius: 9, background: "#FFF1F2", color: "#B4232F" }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 100px", gap: 12 }}>
+              <label>
+                <span>Code</span>
+                <input
+                  value={form.code}
+                  onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))}
+                  placeholder="Auto si vide"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label>
+                <span>Libellé *</span>
+                <input
+                  value={form.libelle}
+                  onChange={(event) => setForm((current) => ({ ...current, libelle: event.target.value }))}
+                  style={inputStyle}
+                />
+              </label>
+
+              <label>
+                <span>Ordre</span>
+                <input
+                  type="number"
+                  value={form.ordre}
+                  onChange={(event) => setForm((current) => ({ ...current, ordre: Number(event.target.value) || 0 }))}
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: "flex", gap: 9, marginTop: 14 }}>
+              <button type="button" onClick={() => void saveItem()} disabled={saving} style={primaryButtonStyle}>
+                {editingId ? <Save size={16} /> : <Plus size={16} />}
+                {editingId ? "Enregistrer" : "Ajouter"}
+              </button>
+
+              {editingId && (
+                <button type="button" onClick={resetForm} style={secondaryButtonStyle}>
+                  <X size={16} /> Annuler
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section style={{ border: "1px solid #DDE7E3", borderRadius: 14, background: "#FFF", overflow: "hidden" }}>
+            <div style={{ padding: "16px 18px", borderBottom: "1px solid #DDE7E3" }}>
+              <h2 style={{ margin: 0, color: "#063D32" }}>{currentCategory.label}</h2>
+            </div>
+
+            {loading ? (
+              <div style={{ padding: 30 }}>Chargement...</div>
+            ) : items.length === 0 ? (
+              <div style={{ padding: 30 }}>Aucune valeur enregistrée.</div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#F1FBF7" }}>
+                    <th style={cellStyle}>Code</th>
+                    <th style={cellStyle}>Libellé</th>
+                    <th style={cellStyle}>Ordre</th>
+                    <th style={cellStyle}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id} style={{ borderTop: "1px solid #EDF2F0" }}>
+                      <td style={cellStyle}>{item.code}</td>
+                      <td style={cellStyle}>{item.libelle}</td>
+                      <td style={cellStyle}>{item.ordre ?? 0}</td>
+                      <td style={cellStyle}>
+                        <div style={{ display: "flex", gap: 7 }}>
+                          <button type="button" title="Modifier" onClick={() => startEdit(item)} style={iconButtonStyle}>
+                            <Pencil size={15} />
+                          </button>
+                          <button type="button" title="Supprimer" onClick={() => void deleteItem(item)} style={{ ...iconButtonStyle, color: "#DC3545" }}>
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  minHeight: 42,
+  padding: "9px 11px",
+  border: "1px solid #DDE7E3",
+  borderRadius: 9,
+  background: "#FFF",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  minHeight: 40,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 7,
+  padding: "0 14px",
+  border: 0,
+  borderRadius: 8,
+  background: "#00966D",
+  color: "#FFF",
+  fontWeight: 750,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...primaryButtonStyle,
+  border: "1px solid #DDE7E3",
+  background: "#FFF",
+  color: "#475D57",
+};
+
+const iconButtonStyle: React.CSSProperties = {
+  width: 34,
+  height: 34,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1px solid #DDE7E3",
+  borderRadius: 8,
+  background: "#FFF",
+  cursor: "pointer",
+};
+
+const cellStyle: React.CSSProperties = {
+  padding: "12px 14px",
+  textAlign: "left",
+  color: "#344A46",
+};
