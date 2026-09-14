@@ -1,436 +1,974 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  Edit3,
-  LoaderCircle,
+  ExternalLink,
+  Loader2,
+  Pencil,
   Plus,
-  Power,
-  RefreshCw,
+  Save,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-import api from "../../api/axios";
+import api from "../../../api/axios";
 import "./ReferentielsManagerPage.css";
 
-type Category = {
+
+type ApiList<T> =
+  | T[]
+  | {
+      results?: T[];
+    };
+
+
+type ReferentielCategory = {
   id: string;
   code: string;
   libelle: string;
-  type_source: "generic" | "table";
+  type_source: "generic" | "table" | string;
   table_source?: string | null;
-  ordre: number;
-  actif: boolean;
+  ordre?: number;
+  actif?: boolean;
 };
 
-type RefValue = {
+
+type ReferentielValue = {
   id: string;
   categorie: string;
   code: string;
   libelle: string;
-  ordre: number;
-  actif: boolean;
+  ordre?: number;
+  actif?: boolean;
 };
 
-type EditorState = {
-  id?: string;
+
+type FormState = {
   code: string;
   libelle: string;
   ordre: number;
-  actif: boolean;
 };
 
-const emptyEditor: EditorState = {
+
+const EMPTY_FORM: FormState = {
   code: "",
   libelle: "",
   ordre: 0,
-  actif: true,
 };
 
-const specializedRoutes: Record<string, string> = {
+
+const SPECIAL_ROUTES: Record<
+  string,
+  string
+> = {
   epi: "/epis",
   epc: "/referentiels/epc",
-  outils: "/outillages",
   risques: "/risques",
+  outils: "/outillages",
 };
 
-export default function ReferentielsManagerPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [values, setValues] = useState<RefValue[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [editor, setEditor] = useState<EditorState>(emptyEditor);
-  const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+function extractResults<T>(data: ApiList<T>): T[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
 
-  const currentCategory = useMemo(
-    () => categories.find((item) => item.code === selectedCategory) ?? null,
-    [categories, selectedCategory],
-  );
+  return data.results ?? [];
+}
 
-  const loadCategories = async () => {
-    const response = await api.get<Category[]>("/v2/referentiel-categories/");
-    setCategories(response.data);
 
-    const requested = searchParams.get("categorie");
-    const fallback = response.data.find((item) => item.type_source === "generic")?.code ?? "";
-    const nextCategory =
-      requested && response.data.some((item) => item.code === requested)
-        ? requested
-        : fallback;
-
-    setSelectedCategory(nextCategory);
-  };
-
-  const loadValues = async (categorie: string) => {
-    if (!categorie) {
-      setValues([]);
-      return;
-    }
-
-    const category = categories.find((item) => item.code === categorie);
-    if (category?.type_source === "table") {
-      setValues([]);
-      return;
-    }
-
-    const response = await api.get<RefValue[]>(
-      `/v2/referentiels/?categorie=${encodeURIComponent(categorie)}&include_inactive=true`,
-    );
-    setValues(response.data);
-  };
-
-  useEffect(() => {
-    const boot = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        await loadCategories();
-      } catch (err) {
-        console.error(err);
-        setError("Impossible de charger les catégories de référentiels.");
-      } finally {
-        setLoading(false);
-      }
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error
+  ) {
+    const axiosError = error as {
+      response?: {
+        data?: unknown;
+      };
     };
 
-    void boot();
-  }, []);
+    const data = axiosError.response?.data;
+
+    if (typeof data === "string") {
+      return data;
+    }
+
+    if (data && typeof data === "object") {
+      try {
+        return JSON.stringify(data);
+      } catch {
+        return "Une erreur est survenue.";
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Une erreur est survenue.";
+}
+
+
+export default function ReferentielsManagerPage() {
+  const navigate = useNavigate();
+
+  const [categories, setCategories] =
+    useState<ReferentielCategory[]>([]);
+
+  const [values, setValues] =
+    useState<ReferentielValue[]>([]);
+
+  const [selectedCategoryCode, setSelectedCategoryCode] =
+    useState<string>("");
+
+  const [loadingCategories, setLoadingCategories] =
+    useState<boolean>(true);
+
+  const [loadingValues, setLoadingValues] =
+    useState<boolean>(false);
+
+  const [saving, setSaving] =
+    useState<boolean>(false);
+
+  const [error, setError] =
+    useState<string>("");
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null);
+
+  const [form, setForm] =
+    useState<FormState>(EMPTY_FORM);
+
+
+  const selectedCategory = useMemo<
+    ReferentielCategory | undefined
+  >(() => {
+    return categories.find(
+      (item: ReferentielCategory) =>
+        item.code === selectedCategoryCode,
+    );
+  }, [categories, selectedCategoryCode]);
+
+
+  const isSpecialTable =
+    selectedCategory?.type_source === "table";
+
 
   useEffect(() => {
-    if (!selectedCategory || categories.length === 0) {
+    void loadCategories();
+  }, []);
+
+
+  useEffect(() => {
+    if (!selectedCategoryCode) {
+      setValues([]);
       return;
     }
 
-    setSearchParams({ categorie: selectedCategory }, { replace: true });
-    setEditor(emptyEditor);
-    setEditing(false);
-    setMessage("");
-    setError("");
+    const category = categories.find(
+      (item: ReferentielCategory) =>
+        item.code === selectedCategoryCode,
+    );
 
-    void loadValues(selectedCategory).catch((err) => {
-      console.error(err);
-      setError("Impossible de charger les valeurs du référentiel.");
-    });
-  }, [selectedCategory, categories]);
-
-  const openCreate = () => {
-    const nextOrder = values.length === 0 ? 1 : Math.max(...values.map((item) => item.ordre)) + 1;
-    setEditor({ ...emptyEditor, ordre: nextOrder });
-    setEditing(true);
-    setError("");
-    setMessage("");
-  };
-
-  const openEdit = (item: RefValue) => {
-    setEditor({
-      id: item.id,
-      code: item.code,
-      libelle: item.libelle,
-      ordre: item.ordre,
-      actif: item.actif,
-    });
-    setEditing(true);
-    setError("");
-    setMessage("");
-  };
-
-  const saveValue = async () => {
-    if (!selectedCategory || !editor.code.trim() || !editor.libelle.trim()) {
-      setError("Le code et le libellé sont obligatoires.");
+    if (!category) {
       return;
     }
+
+    if (category.type_source === "table") {
+      setValues([]);
+      return;
+    }
+
+    void loadValues(selectedCategoryCode);
+  }, [selectedCategoryCode, categories]);
+
+
+  async function loadCategories() {
+    setLoadingCategories(true);
+    setError("");
 
     try {
-      setSaving(true);
-      setError("");
+      const response =
+        await api.get<
+          ApiList<ReferentielCategory>
+        >(
+          "/v2/referentiel-categories/",
+        );
 
-      if (editor.id) {
-        await api.patch(`/v2/referentiels/${editor.id}/`, {
-          code: editor.code,
-          libelle: editor.libelle,
-          ordre: editor.ordre,
-          actif: editor.actif,
-        });
-        setMessage("Valeur modifiée avec succès.");
+      const result =
+        extractResults<ReferentielCategory>(
+          response.data,
+        )
+          .filter(
+            (item: ReferentielCategory) =>
+              item.actif !== false,
+          )
+          .sort(
+            (
+              a: ReferentielCategory,
+              b: ReferentielCategory,
+            ) =>
+              (a.ordre ?? 0) -
+              (b.ordre ?? 0),
+          );
+
+      setCategories(result);
+
+      if (
+        result.length > 0 &&
+        !selectedCategoryCode
+      ) {
+        setSelectedCategoryCode(
+          result[0].code,
+        );
+      }
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        `Impossible de charger les catégories : ${getErrorMessage(
+          err,
+        )}`,
+      );
+    } finally {
+      setLoadingCategories(false);
+    }
+  }
+
+
+  async function loadValues(
+    categorie: string,
+  ) {
+    setLoadingValues(true);
+    setError("");
+
+    try {
+      const response =
+        await api.get<
+          ApiList<ReferentielValue>
+        >(
+          `/v2/referentiels/?categorie=${encodeURIComponent(
+            categorie,
+          )}&include_inactive=true`,
+        );
+
+      const result =
+        extractResults<ReferentielValue>(
+          response.data,
+        ).sort(
+          (
+            a: ReferentielValue,
+            b: ReferentielValue,
+          ) =>
+            (a.ordre ?? 0) -
+            (b.ordre ?? 0),
+        );
+
+      setValues(result);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        `Impossible de charger les valeurs : ${getErrorMessage(
+          err,
+        )}`,
+      );
+    } finally {
+      setLoadingValues(false);
+    }
+  }
+
+
+  function selectCategory(
+    code: string,
+  ) {
+    setSelectedCategoryCode(code);
+    resetForm();
+    setError("");
+  }
+
+
+  function resetForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
+
+
+  function startEdit(
+    item: ReferentielValue,
+  ) {
+    setEditingId(item.id);
+
+    setForm({
+      code: item.code,
+      libelle: item.libelle,
+      ordre: item.ordre ?? 0,
+    });
+  }
+
+
+  async function handleSave() {
+    if (!selectedCategoryCode) {
+      setError(
+        "Sélectionnez une catégorie.",
+      );
+      return;
+    }
+
+    if (!form.code.trim()) {
+      setError(
+        "Le code est obligatoire.",
+      );
+      return;
+    }
+
+    if (!form.libelle.trim()) {
+      setError(
+        "Le libellé est obligatoire.",
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      if (editingId) {
+        await api.patch(
+          `/v2/referentiels/${editingId}/`,
+          {
+            code: form.code.trim(),
+            libelle:
+              form.libelle.trim(),
+            ordre: form.ordre,
+          },
+        );
       } else {
-        await api.post("/v2/referentiels/", {
-          categorie: selectedCategory,
-          code: editor.code,
-          libelle: editor.libelle,
-          ordre: editor.ordre,
-          actif: editor.actif,
-        });
-        setMessage("Valeur ajoutée avec succès.");
+        await api.post(
+          "/v2/referentiels/",
+          {
+            categorie:
+              selectedCategoryCode,
+            code: form.code.trim(),
+            libelle:
+              form.libelle.trim(),
+            ordre: form.ordre,
+            actif: true,
+          },
+        );
       }
 
-      setEditing(false);
-      setEditor(emptyEditor);
-      await loadValues(selectedCategory);
-    } catch (err: any) {
+      resetForm();
+
+      await loadValues(
+        selectedCategoryCode,
+      );
+    } catch (err) {
       console.error(err);
+
       setError(
-        err?.response?.data?.detail ||
-          "Impossible d'enregistrer la valeur. Vérifiez qu'elle n'existe pas déjà.",
+        `Enregistrement impossible : ${getErrorMessage(
+          err,
+        )}`,
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const toggleActive = async (item: RefValue) => {
+
+  async function toggleActive(
+    item: ReferentielValue,
+  ) {
+    setError("");
+
     try {
-      setError("");
-      await api.patch(`/v2/referentiels/${item.id}/`, { actif: !item.actif });
-      await loadValues(selectedCategory);
+      await api.patch(
+        `/v2/referentiels/${item.id}/`,
+        {
+          actif: item.actif === false,
+        },
+      );
+
+      await loadValues(
+        selectedCategoryCode,
+      );
     } catch (err) {
       console.error(err);
-      setError("Impossible de modifier le statut de cette valeur.");
-    }
-  };
 
-  const deleteValue = async (item: RefValue) => {
+      setError(
+        `Modification impossible : ${getErrorMessage(
+          err,
+        )}`,
+      );
+    }
+  }
+
+
+  async function deleteValue(
+    item: ReferentielValue,
+  ) {
     const confirmed = window.confirm(
-      `Supprimer définitivement « ${item.libelle} » ?\n\nPour une valeur déjà utilisée dans des gammes, préférez la désactivation.`,
+      `Supprimer définitivement "${item.libelle}" ?`,
     );
 
     if (!confirmed) {
       return;
     }
 
+    setError("");
+
     try {
-      setError("");
-      await api.delete(`/v2/referentiels/${item.id}/`);
-      await loadValues(selectedCategory);
-      setMessage("Valeur supprimée.");
-    } catch (err: any) {
+      await api.delete(
+        `/v2/referentiels/${item.id}/`,
+      );
+
+      if (editingId === item.id) {
+        resetForm();
+      }
+
+      await loadValues(
+        selectedCategoryCode,
+      );
+    } catch (err) {
       console.error(err);
+
       setError(
-        err?.response?.data?.detail ||
-          "Suppression impossible. Désactivez la valeur si elle est déjà utilisée.",
+        `Suppression impossible : ${getErrorMessage(
+          err,
+        )}`,
       );
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="refs-loading">
-        <LoaderCircle className="spin" size={28} />
-        <span>Chargement des référentiels...</span>
-      </div>
-    );
   }
 
-  return (
-    <div className="refs-page">
-      <header className="refs-header">
-        <div>
-          <p className="refs-kicker">Administration</p>
-          <h1>Référentiels</h1>
-          <p>Ajoutez, modifiez, activez, désactivez ou supprimez les valeurs utilisées dans les listes déroulantes.</p>
-        </div>
 
-        <button
-          type="button"
-          className="refs-secondary-button"
-          onClick={() => void loadValues(selectedCategory)}
-        >
-          <RefreshCw size={16} />
-          Actualiser
-        </button>
+  function openSpecialTable() {
+    if (!selectedCategory) {
+      return;
+    }
+
+    const route =
+      SPECIAL_ROUTES[
+        selectedCategory.code
+      ];
+
+    if (!route) {
+      return;
+    }
+
+    navigate(route);
+  }
+
+
+  return (
+    <div className="referentiels-page">
+
+      <header className="referentiels-header">
+        <div>
+          <span className="referentiels-kicker">
+            Paramètres
+          </span>
+
+          <h1>
+            Référentiels
+          </h1>
+
+          <p>
+            Gérez les listes déroulantes utilisées
+            dans les gammes opératoires.
+          </p>
+        </div>
       </header>
 
-      <div className="refs-layout">
-        <aside className="refs-categories">
-          <h2>Listes</h2>
-          {categories.map((category) => (
-            <button
-              type="button"
-              key={category.id}
-              className={selectedCategory === category.code ? "refs-category active" : "refs-category"}
-              onClick={() => setSelectedCategory(category.code)}
-            >
-              <span>{category.libelle}</span>
-              <small>{category.type_source === "table" ? "Table dédiée" : "Liste simple"}</small>
-            </button>
-          ))}
+
+      {error && (
+        <div className="referentiel-error">
+          {error}
+        </div>
+      )}
+
+
+      <div className="referentiels-layout">
+
+        {/* ====================================================
+            CATEGORIES
+            ==================================================== */}
+
+        <aside className="referentiels-sidebar">
+
+          <div className="referentiels-sidebar-title">
+            Listes disponibles
+          </div>
+
+
+          {loadingCategories ? (
+            <div className="referentiel-loading">
+              <Loader2
+                size={18}
+                className="spin"
+              />
+
+              Chargement...
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="referentiel-empty">
+              Aucune catégorie.
+            </div>
+          ) : (
+            <div className="referentiels-category-list">
+              {categories.map(
+                (
+                  category: ReferentielCategory,
+                ) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={[
+                      "referentiel-category-button",
+                      selectedCategoryCode ===
+                      category.code
+                        ? "active"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() =>
+                      selectCategory(
+                        category.code,
+                      )
+                    }
+                  >
+                    <span>
+                      {category.libelle}
+                    </span>
+
+                    {category.type_source ===
+                      "table" && (
+                      <small>
+                        Table
+                      </small>
+                    )}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+
         </aside>
 
-        <main className="refs-content">
-          {currentCategory?.type_source === "table" ? (
-            <section className="refs-card">
-              <h2>{currentCategory.libelle}</h2>
-              <p>
-                Ce référentiel utilise la table spécialisée <strong>{currentCategory.table_source}</strong>. Il conserve sa propre page de gestion afin de garder ses champs spécifiques comme l'image ou la description.
-              </p>
-              <a className="refs-primary-link" href={specializedRoutes[currentCategory.code] ?? "/"}>
-                Ouvrir la page {currentCategory.libelle}
-              </a>
+
+        {/* ====================================================
+            CONTENT
+            ==================================================== */}
+
+        <main className="referentiels-content">
+
+          {!selectedCategory ? (
+            <section className="referentiel-card">
+              <div className="referentiel-empty">
+                Sélectionnez une catégorie.
+              </div>
+            </section>
+          ) : isSpecialTable ? (
+            <section className="referentiel-card">
+
+              <div className="referentiel-section-title">
+                <div>
+                  <h2>
+                    {selectedCategory.libelle}
+                  </h2>
+
+                  <p>
+                    Cette liste utilise une table
+                    spécialisée :
+                    {" "}
+                    <strong>
+                      {selectedCategory.table_source ||
+                        "—"}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+
+              <div className="special-table-box">
+
+                <div>
+                  <strong>
+                    Référentiel spécialisé
+                  </strong>
+
+                  <p>
+                    Les valeurs de cette liste possèdent
+                    leur propre table et doivent être
+                    gérées depuis leur module dédié.
+                  </p>
+                </div>
+
+
+                {SPECIAL_ROUTES[
+                  selectedCategory.code
+                ] ? (
+                  <button
+                    type="button"
+                    className="referentiel-primary-button"
+                    onClick={
+                      openSpecialTable
+                    }
+                  >
+                    Ouvrir la gestion
+
+                    <ExternalLink
+                      size={16}
+                    />
+                  </button>
+                ) : (
+                  <span className="referentiel-muted">
+                    Aucun écran dédié configuré.
+                  </span>
+                )}
+
+              </div>
+
             </section>
           ) : (
             <>
-              <section className="refs-card refs-toolbar-card">
-                <div>
-                  <h2>{currentCategory?.libelle ?? "Référentiel"}</h2>
-                  <p>{values.length} valeur(s) enregistrée(s)</p>
+
+              {/* ==============================================
+                  FORMULAIRE
+                  ============================================== */}
+
+              <section className="referentiel-card">
+
+                <div className="referentiel-section-title">
+                  <div>
+                    <h2>
+                      {selectedCategory.libelle}
+                    </h2>
+
+                    <p>
+                      {editingId
+                        ? "Modifier la valeur sélectionnée."
+                        : "Ajouter une nouvelle valeur à cette liste."}
+                    </p>
+                  </div>
                 </div>
 
-                <button type="button" className="refs-primary-button" onClick={openCreate}>
-                  <Plus size={17} />
-                  Ajouter
-                </button>
-              </section>
 
-              {error && <div className="refs-alert error">{error}</div>}
-              {message && <div className="refs-alert success">{message}</div>}
+                <div className="referentiel-form-grid">
 
-              {editing && (
-                <section className="refs-card refs-editor">
-                  <div className="refs-editor-header">
-                    <h3>{editor.id ? "Modifier la valeur" : "Ajouter une valeur"}</h3>
-                    <button type="button" className="refs-icon-button" onClick={() => setEditing(false)}>
-                      <X size={18} />
-                    </button>
-                  </div>
+                  <label>
+                    <span>
+                      Code *
+                    </span>
 
-                  <div className="refs-form-grid">
-                    <label>
-                      <span>Code *</span>
-                      <input
-                        value={editor.code}
-                        onChange={(event) =>
-                          setEditor((current) => ({ ...current, code: event.target.value }))
-                        }
-                        placeholder="Ex. mensuelle"
-                      />
-                    </label>
-
-                    <label>
-                      <span>Libellé *</span>
-                      <input
-                        value={editor.libelle}
-                        onChange={(event) =>
-                          setEditor((current) => ({ ...current, libelle: event.target.value }))
-                        }
-                        placeholder="Ex. Mensuelle"
-                      />
-                    </label>
-
-                    <label>
-                      <span>Ordre</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={editor.ordre}
-                        onChange={(event) =>
-                          setEditor((current) => ({
+                    <input
+                      type="text"
+                      value={form.code}
+                      onChange={(event) =>
+                        setForm(
+                          (current) => ({
                             ...current,
-                            ordre: Number(event.target.value) || 0,
-                          }))
-                        }
-                      />
-                    </label>
+                            code:
+                              event.target
+                                .value,
+                          }),
+                        )
+                      }
+                      placeholder="Ex. automatisme"
+                    />
+                  </label>
 
-                    <label className="refs-checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={editor.actif}
-                        onChange={(event) =>
-                          setEditor((current) => ({ ...current, actif: event.target.checked }))
-                        }
-                      />
-                      <span>Valeur active</span>
-                    </label>
-                  </div>
 
-                  <div className="refs-editor-actions">
-                    <button type="button" className="refs-secondary-button" onClick={() => setEditing(false)}>
+                  <label>
+                    <span>
+                      Libellé *
+                    </span>
+
+                    <input
+                      type="text"
+                      value={form.libelle}
+                      onChange={(event) =>
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            libelle:
+                              event.target
+                                .value,
+                          }),
+                        )
+                      }
+                      placeholder="Ex. Automatisme"
+                    />
+                  </label>
+
+
+                  <label>
+                    <span>
+                      Ordre
+                    </span>
+
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.ordre}
+                      onChange={(event) =>
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            ordre:
+                              Number(
+                                event.target
+                                  .value,
+                              ) || 0,
+                          }),
+                        )
+                      }
+                    />
+                  </label>
+
+                </div>
+
+
+                <div className="referentiel-form-actions">
+
+                  {editingId && (
+                    <button
+                      type="button"
+                      className="referentiel-secondary-button"
+                      onClick={resetForm}
+                      disabled={saving}
+                    >
+                      <X size={16} />
+
                       Annuler
                     </button>
-                    <button type="button" className="refs-primary-button" disabled={saving} onClick={() => void saveValue()}>
-                      {saving ? <LoaderCircle className="spin" size={17} /> : <CheckCircle2 size={17} />}
-                      Enregistrer
-                    </button>
-                  </div>
-                </section>
-              )}
+                  )}
 
-              <section className="refs-card refs-table-card">
-                <div className="refs-table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Ordre</th>
-                        <th>Code</th>
-                        <th>Libellé</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {values.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="refs-empty">Aucune valeur dans ce référentiel.</td>
-                        </tr>
-                      ) : (
-                        values.map((item) => (
-                          <tr key={item.id}>
-                            <td>{item.ordre}</td>
-                            <td><code>{item.code}</code></td>
-                            <td>{item.libelle}</td>
-                            <td>
-                              <span className={item.actif ? "refs-status active" : "refs-status inactive"}>
-                                {item.actif ? "Actif" : "Inactif"}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="refs-actions">
-                                <button type="button" title="Modifier" onClick={() => openEdit(item)}>
-                                  <Edit3 size={16} />
-                                </button>
-                                <button type="button" title={item.actif ? "Désactiver" : "Activer"} onClick={() => void toggleActive(item)}>
-                                  <Power size={16} />
-                                </button>
-                                <button type="button" className="danger" title="Supprimer" onClick={() => void deleteValue(item)}>
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+
+                  <button
+                    type="button"
+                    className="referentiel-primary-button"
+                    onClick={() => {
+                      void handleSave();
+                    }}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2
+                          size={16}
+                          className="spin"
+                        />
+
+                        Enregistrement...
+                      </>
+                    ) : editingId ? (
+                      <>
+                        <Save size={16} />
+
+                        Enregistrer
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} />
+
+                        Ajouter
+                      </>
+                    )}
+                  </button>
+
                 </div>
+
               </section>
+
+
+              {/* ==============================================
+                  TABLEAU
+                  ============================================== */}
+
+              <section className="referentiel-card">
+
+                <div className="referentiel-section-title">
+                  <div>
+                    <h2>
+                      Valeurs
+                    </h2>
+
+                    <p>
+                      {values.length} valeur
+                      {values.length > 1
+                        ? "s"
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+
+                {loadingValues ? (
+                  <div className="referentiel-loading">
+                    <Loader2
+                      size={18}
+                      className="spin"
+                    />
+
+                    Chargement...
+                  </div>
+                ) : values.length === 0 ? (
+                  <div className="referentiel-empty">
+                    Aucune valeur disponible.
+                  </div>
+                ) : (
+                  <div className="referentiel-table-wrapper">
+
+                    <table className="referentiel-table">
+
+                      <thead>
+                        <tr>
+                          <th>
+                            Ordre
+                          </th>
+
+                          <th>
+                            Code
+                          </th>
+
+                          <th>
+                            Libellé
+                          </th>
+
+                          <th>
+                            Statut
+                          </th>
+
+                          <th>
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+
+
+                      <tbody>
+                        {values.map(
+                          (
+                            item: ReferentielValue,
+                          ) => (
+                            <tr key={item.id}>
+
+                              <td>
+                                {item.ordre ?? 0}
+                              </td>
+
+
+                              <td>
+                                <code>
+                                  {item.code}
+                                </code>
+                              </td>
+
+
+                              <td>
+                                <strong>
+                                  {item.libelle}
+                                </strong>
+                              </td>
+
+
+                              <td>
+                                <button
+                                  type="button"
+                                  className={
+                                    item.actif ===
+                                    false
+                                      ? "status-badge inactive"
+                                      : "status-badge active"
+                                  }
+                                  onClick={() => {
+                                    void toggleActive(
+                                      item,
+                                    );
+                                  }}
+                                >
+                                  {item.actif ===
+                                  false ? (
+                                    <>
+                                      <XCircle
+                                        size={14}
+                                      />
+
+                                      Inactif
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2
+                                        size={14}
+                                      />
+
+                                      Actif
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+
+
+                              <td>
+                                <div className="referentiel-row-actions">
+
+                                  <button
+                                    type="button"
+                                    className="referentiel-icon-button"
+                                    title="Modifier"
+                                    onClick={() =>
+                                      startEdit(
+                                        item,
+                                      )
+                                    }
+                                  >
+                                    <Pencil
+                                      size={16}
+                                    />
+                                  </button>
+
+
+                                  <button
+                                    type="button"
+                                    className="referentiel-icon-button danger"
+                                    title="Supprimer"
+                                    onClick={() => {
+                                      void deleteValue(
+                                        item,
+                                      );
+                                    }}
+                                  >
+                                    <Trash2
+                                      size={16}
+                                    />
+                                  </button>
+
+                                </div>
+                              </td>
+
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+
+                    </table>
+
+                  </div>
+                )}
+
+              </section>
+
             </>
           )}
+
         </main>
+
       </div>
     </div>
   );
