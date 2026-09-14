@@ -1,20 +1,42 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import type {
+  ChangeEvent,
+  FormEvent,
+} from "react";
+
 import api from "../../api/axios";
 
-type DisplayMode = "list" | "cards" | "table";
+
+type DisplayMode =
+  | "list"
+  | "cards"
+  | "table";
+
 
 type FieldConfig = {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "url";
+  type?:
+    | "text"
+    | "number"
+    | "textarea"
+    | "url";
+
   required?: boolean;
   placeholder?: string;
 };
+
 
 type ReferentielItem = {
   id: string;
   [key: string]: unknown;
 };
+
 
 type Props = {
   title: string;
@@ -33,6 +55,7 @@ type Props = {
   fields: FieldConfig[];
 };
 
+
 export default function ReferentielPage({
   title,
   subtitle,
@@ -43,11 +66,18 @@ export default function ReferentielPage({
   displayMode = "list",
   fields,
 }: Props) {
-  const [items, setItems] = useState<ReferentielItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [items, setItems] =
+    useState<ReferentielItem[]>([]);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null);
+
 
   const initialForm = useMemo(() => {
     const data: Record<string, string> = {};
@@ -59,45 +89,73 @@ export default function ReferentielPage({
     return data;
   }, [fields]);
 
-  const [form, setForm] = useState<Record<string, string>>(initialForm);
+
+  const [form, setForm] =
+    useState<Record<string, string>>(
+      initialForm
+    );
+
 
   useEffect(() => {
     setForm(initialForm);
   }, [initialForm]);
 
+
+  /* ============================================================
+     CHARGEMENT
+  ============================================================ */
+
   const loadItems = async () => {
     try {
       setLoading(true);
 
-      const response = await api.get(endpoint);
+      const response =
+        await api.get(endpoint);
 
-      const data = Array.isArray(response.data)
-        ? response.data
-        : response.data?.results ?? [];
+      const data =
+        Array.isArray(response.data)
+          ? response.data
+          : response.data?.results ?? [];
 
       setItems(data);
     } catch (error) {
-      console.error(`Erreur chargement ${title}`, error);
+      console.error(
+        `Erreur chargement ${title}`,
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+
   useEffect(() => {
-    loadItems();
+    void loadItems();
   }, [endpoint]);
+
+
+  /* ============================================================
+     RESET
+  ============================================================ */
 
   const resetForm = () => {
     setEditingId(null);
     setForm(initialForm);
   };
 
+
+  /* ============================================================
+     CHANGEMENT CHAMP
+  ============================================================ */
+
   const handleChange = (
-    event: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    event: ChangeEvent<
+      HTMLInputElement |
+      HTMLTextAreaElement
     >
   ) => {
-    const { name, value } = event.target;
+    const { name, value } =
+      event.target;
 
     setForm((previous) => ({
       ...previous,
@@ -105,14 +163,26 @@ export default function ReferentielPage({
     }));
   };
 
-  const handleEdit = (item: ReferentielItem) => {
-    const nextForm: Record<string, string> = {};
+
+  /* ============================================================
+     MODIFIER
+  ============================================================ */
+
+  const handleEdit = (
+    item: ReferentielItem
+  ) => {
+    const nextForm:
+      Record<string, string> = {};
 
     fields.forEach((field) => {
-      const value = item[field.name];
+      const value =
+        item[field.name];
 
       nextForm[field.name] =
-        value === undefined || value === null ? "" : String(value);
+        value === undefined ||
+        value === null
+          ? ""
+          : String(value);
     });
 
     setEditingId(item.id);
@@ -124,76 +194,136 @@ export default function ReferentielPage({
     });
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+
+  /* ============================================================
+     ENREGISTRER
+  ============================================================ */
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
 
     try {
       setSaving(true);
 
-      const payload: Record<string, unknown> = {};
+      const payload:
+        Record<string, unknown> = {};
 
       fields.forEach((field) => {
-        const value = form[field.name];
+        const value =
+          form[field.name];
 
         if (field.type === "number") {
           payload[field.name] =
-            value === "" || value === undefined ? null : Number(value);
+            value === "" ||
+            value === undefined
+              ? null
+              : Number(value);
         } else {
-          payload[field.name] = value;
+          payload[field.name] =
+            value;
         }
       });
 
+
       if (editingId) {
-        await api.patch(`${endpoint}${editingId}/`, payload);
+        await api.patch(
+          `${endpoint}${editingId}/`,
+          payload
+        );
       } else {
-        await api.post(endpoint, payload);
+        await api.post(
+          endpoint,
+          payload
+        );
       }
 
+
       resetForm();
+
       await loadItems();
+
     } catch (error) {
-      console.error(`Erreur enregistrement ${title}`, error);
-      alert("Impossible d'enregistrer cette valeur.");
+      console.error(
+        `Erreur enregistrement ${title}`,
+        error
+      );
+
+      window.alert(
+        "Impossible d'enregistrer cette valeur."
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      "Voulez-vous vraiment supprimer cet élément ?"
-    );
+
+  /* ============================================================
+     SUPPRESSION
+  ============================================================ */
+
+  const handleDelete = async (
+    id: string
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Voulez-vous vraiment supprimer cet élément ?"
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      await api.delete(`${endpoint}${id}/`);
+      await api.delete(
+        `${endpoint}${id}/`
+      );
 
       if (editingId === id) {
         resetForm();
       }
 
       await loadItems();
-    } catch (error) {
-      console.error(`Erreur suppression ${title}`, error);
 
-      alert(
+    } catch (error) {
+      console.error(
+        `Erreur suppression ${title}`,
+        error
+      );
+
+      window.alert(
         "Suppression impossible. Cet élément est peut-être déjà utilisé dans une gamme."
       );
     }
   };
 
-  const getValue = (item: ReferentielItem, fieldName: string) => {
-    const value = item[fieldName];
 
-    if (value === undefined || value === null) {
+  /* ============================================================
+     VALEUR
+  ============================================================ */
+
+  const getValue = (
+    item: ReferentielItem,
+    fieldName: string
+  ): string => {
+    const value =
+      item[fieldName];
+
+    if (
+      value === undefined ||
+      value === null
+    ) {
       return "";
     }
 
     return String(value);
   };
+
+
+  /* ============================================================
+     AFFICHAGE
+  ============================================================ */
 
   return (
     <div
@@ -203,6 +333,9 @@ export default function ReferentielPage({
         boxSizing: "border-box",
       }}
     >
+
+      {/* HEADER */}
+
       <div
         style={{
           marginBottom: "24px",
@@ -231,15 +364,20 @@ export default function ReferentielPage({
         )}
       </div>
 
+
+      {/* FORMULAIRE */}
+
       <div
         style={{
           background: "#FFFFFF",
-          border: "1px solid #DDE7E3",
+          border:
+            "1px solid #DDE7E3",
           borderRadius: "14px",
           padding: "22px",
           marginBottom: "24px",
         }}
       >
+
         <h2
           style={{
             marginTop: 0,
@@ -248,19 +386,26 @@ export default function ReferentielPage({
             fontSize: "18px",
           }}
         >
-          {editingId ? "Modifier" : "Ajouter"}
+          {editingId
+            ? "Modifier"
+            : "Ajouter"}
         </h2>
 
+
         <form onSubmit={handleSubmit}>
+
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(240px, 1fr))",
               gap: "16px",
             }}
           >
+
             {fields.map((field) => (
               <div key={field.name}>
+
                 <label
                   htmlFor={field.name}
                   style={{
@@ -271,48 +416,90 @@ export default function ReferentielPage({
                   }}
                 >
                   {field.label}
-                  {field.required ? " *" : ""}
+
+                  {field.required
+                    ? " *"
+                    : ""}
                 </label>
 
-                {field.type === "textarea" ? (
+
+                {field.type ===
+                "textarea" ? (
+
                   <textarea
                     id={field.name}
                     name={field.name}
-                    required={field.required}
-                    placeholder={field.placeholder}
-                    value={form[field.name] ?? ""}
-                    onChange={handleChange}
+                    required={
+                      field.required
+                    }
+                    placeholder={
+                      field.placeholder
+                    }
+                    value={
+                      form[field.name] ??
+                      ""
+                    }
+                    onChange={
+                      handleChange
+                    }
                     rows={4}
                     style={{
                       width: "100%",
-                      boxSizing: "border-box",
-                      border: "1px solid #DDE7E3",
-                      borderRadius: "8px",
-                      padding: "10px 12px",
-                      fontFamily: "inherit",
+                      boxSizing:
+                        "border-box",
+                      border:
+                        "1px solid #DDE7E3",
+                      borderRadius:
+                        "8px",
+                      padding:
+                        "10px 12px",
+                      fontFamily:
+                        "inherit",
                     }}
                   />
+
                 ) : (
+
                   <input
                     id={field.name}
                     name={field.name}
-                    type={field.type ?? "text"}
-                    required={field.required}
-                    placeholder={field.placeholder}
-                    value={form[field.name] ?? ""}
-                    onChange={handleChange}
+                    type={
+                      field.type ??
+                      "text"
+                    }
+                    required={
+                      field.required
+                    }
+                    placeholder={
+                      field.placeholder
+                    }
+                    value={
+                      form[field.name] ??
+                      ""
+                    }
+                    onChange={
+                      handleChange
+                    }
                     style={{
                       width: "100%",
-                      boxSizing: "border-box",
-                      border: "1px solid #DDE7E3",
-                      borderRadius: "8px",
-                      padding: "10px 12px",
+                      boxSizing:
+                        "border-box",
+                      border:
+                        "1px solid #DDE7E3",
+                      borderRadius:
+                        "8px",
+                      padding:
+                        "10px 12px",
                     }}
                   />
+
                 )}
+
               </div>
             ))}
+
           </div>
+
 
           <div
             style={{
@@ -321,6 +508,7 @@ export default function ReferentielPage({
               marginTop: "20px",
             }}
           >
+
             <button
               type="submit"
               disabled={saving}
@@ -330,47 +518,67 @@ export default function ReferentielPage({
                 padding: "10px 18px",
                 background: "#00966D",
                 color: "#FFFFFF",
-                cursor: "pointer",
+                cursor:
+                  saving
+                    ? "not-allowed"
+                    : "pointer",
                 fontWeight: 600,
               }}
             >
               {saving
                 ? "Enregistrement..."
                 : editingId
-                ? "Enregistrer"
-                : "+ Ajouter"}
+                  ? "Enregistrer"
+                  : "+ Ajouter"}
             </button>
+
 
             {editingId && (
               <button
                 type="button"
+                disabled={saving}
                 onClick={resetForm}
                 style={{
-                  border: "1px solid #DDE7E3",
-                  borderRadius: "8px",
-                  padding: "10px 18px",
-                  background: "#FFFFFF",
+                  border:
+                    "1px solid #DDE7E3",
+                  borderRadius:
+                    "8px",
+                  padding:
+                    "10px 18px",
+                  background:
+                    "#FFFFFF",
                   cursor: "pointer",
                 }}
               >
                 Annuler
               </button>
             )}
+
           </div>
+
         </form>
+
       </div>
+
+
+      {/* LISTE */}
 
       <div
         style={{
           background: "#FFFFFF",
-          border: "1px solid #DDE7E3",
+          border:
+            "1px solid #DDE7E3",
           borderRadius: "14px",
           padding: "22px",
         }}
       >
+
         {loading ? (
+
           <p>Chargement...</p>
+
         ) : items.length === 0 ? (
+
           <p
             style={{
               color: "#64748B",
@@ -378,7 +586,9 @@ export default function ReferentielPage({
           >
             Aucun élément enregistré.
           </p>
+
         ) : (
+
           <div
             style={
               displayMode === "cards"
@@ -390,37 +600,61 @@ export default function ReferentielPage({
                   }
                 : {
                     display: "flex",
-                    flexDirection: "column",
+                    flexDirection:
+                      "column",
                     gap: "10px",
                   }
             }
           >
+
             {items.map((item) => (
+
               <div
                 key={item.id}
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems:
+                    "center",
                   gap: "14px",
-                  border: "1px solid #DDE7E3",
-                  borderRadius: "10px",
+                  border:
+                    "1px solid #DDE7E3",
+                  borderRadius:
+                    "10px",
                   padding: "14px",
-                  background: "#FFFFFF",
+                  background:
+                    "#FFFFFF",
                 }}
               >
-                {imageField && getValue(item, imageField) && (
-                  <img
-                    src={getValue(item, imageField)}
-                    alt={getValue(item, primaryField)}
-                    style={{
-                      width: "56px",
-                      height: "56px",
-                      objectFit: "cover",
-                      borderRadius: "8px",
-                      border: "1px solid #DDE7E3",
-                    }}
-                  />
-                )}
+
+                {imageField &&
+                  getValue(
+                    item,
+                    imageField
+                  ) && (
+
+                    <img
+                      src={getValue(
+                        item,
+                        imageField
+                      )}
+                      alt={getValue(
+                        item,
+                        primaryField
+                      )}
+                      style={{
+                        width: "56px",
+                        height: "56px",
+                        objectFit:
+                          "cover",
+                        borderRadius:
+                          "8px",
+                        border:
+                          "1px solid #DDE7E3",
+                      }}
+                    />
+
+                  )}
+
 
                 <div
                   style={{
@@ -428,73 +662,118 @@ export default function ReferentielPage({
                     minWidth: 0,
                   }}
                 >
+
                   <div
                     style={{
-                      fontWeight: 700,
-                      color: "#172B2A",
+                      fontWeight:
+                        700,
+                      color:
+                        "#172B2A",
                     }}
                   >
-                    {getValue(item, primaryField)}
+                    {getValue(
+                      item,
+                      primaryField
+                    )}
                   </div>
 
-                  {secondaryFields.map((fieldName) => {
-                    const value = getValue(item, fieldName);
 
-                    if (!value) {
-                      return null;
+                  {secondaryFields.map(
+                    (fieldName) => {
+                      const value =
+                        getValue(
+                          item,
+                          fieldName
+                        );
+
+                      if (!value) {
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          key={
+                            fieldName
+                          }
+                          style={{
+                            color:
+                              "#64748B",
+                            fontSize:
+                              "14px",
+                            marginTop:
+                              "3px",
+                          }}
+                        >
+                          {value}
+                        </div>
+                      );
                     }
+                  )}
 
-                    return (
-                      <div
-                        key={fieldName}
-                        style={{
-                          color: "#64748B",
-                          fontSize: "14px",
-                          marginTop: "3px",
-                        }}
-                      >
-                        {value}
-                      </div>
-                    );
-                  })}
                 </div>
+
 
                 <button
                   type="button"
-                  onClick={() => handleEdit(item)}
+                  onClick={() =>
+                    handleEdit(item)
+                  }
                   style={{
-                    border: "1px solid #00966D",
-                    borderRadius: "7px",
-                    padding: "7px 12px",
-                    background: "#FFFFFF",
-                    color: "#007F5F",
-                    cursor: "pointer",
+                    border:
+                      "1px solid #00966D",
+                    borderRadius:
+                      "7px",
+                    padding:
+                      "7px 12px",
+                    background:
+                      "#FFFFFF",
+                    color:
+                      "#007F5F",
+                    cursor:
+                      "pointer",
                     fontWeight: 600,
                   }}
                 >
                   Modifier
                 </button>
 
+
                 <button
                   type="button"
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() =>
+                    void handleDelete(
+                      item.id
+                    )
+                  }
                   style={{
-                    border: "1px solid #DC3545",
-                    borderRadius: "7px",
-                    padding: "7px 12px",
-                    background: "#FFFFFF",
-                    color: "#DC3545",
-                    cursor: "pointer",
+                    border:
+                      "1px solid #DC3545",
+                    borderRadius:
+                      "7px",
+                    padding:
+                      "7px 12px",
+                    background:
+                      "#FFFFFF",
+                    color:
+                      "#DC3545",
+                    cursor:
+                      "pointer",
                     fontWeight: 600,
                   }}
                 >
                   Supprimer
                 </button>
+
               </div>
+
             ))}
+
           </div>
+
         )}
+
       </div>
+
     </div>
   );
 }
