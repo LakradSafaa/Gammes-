@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -62,7 +62,9 @@ type FormState = {
   designation: string;
   abreviation: string;
   equipement: string;
-  description: string;
+  corps_metier: string;
+  type_redaction: string;
+  image_url: string;
   type_maintenance: string;
   periodicite: string;
   main_oeuvre: number;
@@ -75,7 +77,9 @@ const initialForm: FormState = {
   designation: "",
   abreviation: "",
   equipement: "",
-  description: "",
+  corps_metier: "",
+  type_redaction: "redaction_complete",
+  image_url: "",
   type_maintenance: "preventif",
   periodicite: "Mensuelle",
   main_oeuvre: 1,
@@ -164,6 +168,12 @@ export default function GammeCreate() {
   const [typesArret, setTypesArret] =
     useState<RefValue[]>(fallbackArrets);
 
+  const [corpsMetiers, setCorpsMetiers] =
+    useState<RefValue[]>([]);
+
+  const [typesRedaction, setTypesRedaction] =
+    useState<RefValue[]>([]);
+
   const [selectedEpis, setSelectedEpis] = useState<string[]>([]);
   const [selectedEpcs, setSelectedEpcs] = useState<string[]>([]);
   const [selectedRisques, setSelectedRisques] = useState<string[]>([]);
@@ -207,15 +217,15 @@ export default function GammeCreate() {
         ]);
 
         setEquipements(
-          extractResults(equipementsResponse.data).filter(
+          extractResults<Equipement>(equipementsResponse.data).filter(
             (item) => item.actif !== false,
           ),
         );
 
-        setEpis(extractResults(episResponse.data));
-        setRisques(extractResults(risquesResponse.data));
-        setOutillages(extractResults(outillagesResponse.data));
-        setPieces(extractResults(piecesResponse.data));
+        setEpis(extractResults<SimpleRef>(episResponse.data));
+        setRisques(extractResults<SimpleRef>(risquesResponse.data));
+        setOutillages(extractResults<SimpleRef>(outillagesResponse.data));
+        setPieces(extractResults<Piece>(piecesResponse.data));
 
         const optionalResponses = await Promise.allSettled([
           api.get<SimpleRef[]>("/v2/epcs/"),
@@ -227,6 +237,12 @@ export default function GammeCreate() {
           ),
           api.get<RefValue[]>(
             "/v2/referentiels/?categorie=type_arret",
+          ),
+          api.get<RefValue[]>(
+            "/v2/referentiels/?categorie=corps_metier",
+          ),
+          api.get<RefValue[]>(
+            "/v2/referentiels/?categorie=type_redaction",
           ),
         ]);
 
@@ -265,6 +281,24 @@ export default function GammeCreate() {
             ),
           );
         }
+
+        if (optionalResponses[4].status === "fulfilled") {
+          setCorpsMetiers(
+            normalizeReferenceValues(
+              optionalResponses[4].value.data,
+              [],
+            ),
+          );
+        }
+
+        if (optionalResponses[5].status === "fulfilled") {
+          setTypesRedaction(
+            normalizeReferenceValues(
+              optionalResponses[5].value.data,
+              [],
+            ),
+          );
+        }
       } catch (err) {
         console.error(err);
         setError(
@@ -298,8 +332,8 @@ export default function GammeCreate() {
 
   const toggleId = (
     id: string,
-    setter: React.Dispatch<
-      React.SetStateAction<string[]>
+    setter: Dispatch<
+      SetStateAction<string[]>
     >,
   ) => {
     setter((current) =>
@@ -311,8 +345,8 @@ export default function GammeCreate() {
 
   const toggleQuantity = (
     id: string,
-    setter: React.Dispatch<
-      React.SetStateAction<Record<string, number>>
+    setter: Dispatch<
+      SetStateAction<Record<string, number>>
     >,
   ) => {
     setter((current) => {
@@ -332,14 +366,37 @@ export default function GammeCreate() {
   const updateQuantity = (
     id: string,
     quantity: number,
-    setter: React.Dispatch<
-      React.SetStateAction<Record<string, number>>
+    setter: Dispatch<
+      SetStateAction<Record<string, number>>
     >,
   ) => {
     setter((current) => ({
       ...current,
       [id]: Math.max(1, Number(quantity) || 1),
     }));
+  };
+
+  const handleImageChange = (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Le fichier sélectionné doit être une image.");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setError("L'image ne doit pas dépasser 3 Mo.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateForm("image_url", String(reader.result ?? ""));
+      setError("");
+    };
+    reader.readAsDataURL(file);
   };
 
   const validateCurrentStep = () => {
@@ -350,11 +407,13 @@ export default function GammeCreate() {
       (
         !form.code.trim() ||
         !form.designation.trim() ||
-        !form.equipement
+        !form.equipement ||
+        !form.corps_metier ||
+        !form.type_redaction
       )
     ) {
       setError(
-        "Le code, l'intitulé et l'équipement sont obligatoires.",
+        "Le code, l'intitulé, le corps de métier, le type de rédaction et l'équipement sont obligatoires.",
       );
       return false;
     }
@@ -420,10 +479,12 @@ export default function GammeCreate() {
     if (
       !form.code.trim() ||
       !form.designation.trim() ||
-      !form.equipement
+      !form.equipement ||
+      !form.corps_metier ||
+      !form.type_redaction
     ) {
       setError(
-        "Le code, l'intitulé et l'équipement sont obligatoires.",
+        "Le code, l'intitulé, le corps de métier, le type de rédaction et l'équipement sont obligatoires.",
       );
       return;
     }
@@ -440,14 +501,22 @@ export default function GammeCreate() {
           abreviation:
             form.abreviation.trim() || null,
           equipement: form.equipement,
-          description:
-            form.description.trim() || null,
+          description: null,
           actif: true,
         },
       );
 
       const gammeId = String(
         gammeResponse.data.id,
+      );
+
+      await api.patch(
+        `/v2/gammes/${gammeId}/metadata/`,
+        {
+          corps_metier: form.corps_metier,
+          type_redaction: form.type_redaction,
+          image_url: form.image_url || null,
+        },
       );
 
       const versionsResponse = await api.get<
@@ -457,7 +526,7 @@ export default function GammeCreate() {
         `/gammes/${gammeId}/versions/`,
       );
 
-      const version = extractResults(
+      const version = extractResults<GammeVersion>(
         versionsResponse.data,
       )
         .slice()
@@ -826,25 +895,96 @@ export default function GammeCreate() {
                 </div>
               )}
 
-              <label className="form-span-2">
+              <label>
                 <span>
-                  Description
+                  Corps de métier *
                 </span>
 
-                <textarea
-                  value={
-                    form.description
-                  }
+                <select
+                  value={form.corps_metier}
                   onChange={(event) =>
                     updateForm(
-                      "description",
+                      "corps_metier",
                       event.target.value,
                     )
                   }
-                  rows={4}
-                  placeholder="Description de la gamme..."
-                />
+                >
+                  <option value="">
+                    Sélectionner un corps de métier
+                  </option>
+                  {corpsMetiers.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.libelle}
+                    </option>
+                  ))}
+                </select>
               </label>
+
+              <label>
+                <span>
+                  Type de rédaction *
+                </span>
+
+                <select
+                  value={form.type_redaction}
+                  onChange={(event) =>
+                    updateForm(
+                      "type_redaction",
+                      event.target.value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Sélectionner un type de rédaction
+                  </option>
+                  {typesRedaction.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.libelle}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="form-span-2 gamme-image-field">
+                <span className="field-label">Image de la gamme</span>
+
+                {form.image_url ? (
+                  <div className="gamme-image-preview">
+                    <img src={form.image_url} alt="Aperçu de la gamme" />
+                    <div className="gamme-image-buttons">
+                      <label className="image-button">
+                        Remplacer
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) =>
+                            handleImageChange(event.target.files?.[0] ?? null)
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="image-button danger"
+                        onClick={() => updateForm("image_url", "")}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="gamme-image-dropzone">
+                    <strong>Ajouter une image</strong>
+                    <span>PNG, JPG ou WEBP — maximum 3 Mo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        handleImageChange(event.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           </>
         )}
