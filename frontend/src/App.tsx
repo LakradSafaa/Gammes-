@@ -13,19 +13,38 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 
-/*
-  IMPORTANT :
-  ton fichier réel est :
-  src/pages/equipements/Equipements.tsx
-*/
+
+/* ============================================================
+   ÉQUIPEMENTS
+============================================================ */
+
 import EquipementsPage from "./pages/equipements/Equipements";
 
+
+/* ============================================================
+   GAMMES
+============================================================ */
+
+import GammesList from "./pages/gammes/GammesList";
 import GammeCreate from "./pages/gammes/GammeCreate";
+import GammeDetail from "./pages/gammes/GammeDetail";
+import GammeEdit from "./pages/gammes/GammeEdit";
+import QrPublic from "./pages/gammes/QrPublic";
+
+
+/* ============================================================
+   RÉFÉRENTIELS
+============================================================ */
 
 import EPIPage from "./pages/referentiels/EPIPage";
 import RisquesPage from "./pages/referentiels/RisquesPage";
 import OutillagesPage from "./pages/referentiels/OutillagesPage";
 import PiecesPage from "./pages/referentiels/PiecesPage";
+
+
+/* ============================================================
+   MODULES
+============================================================ */
 
 import VersionsPage from "./pages/modules/VersionsPage";
 import PlansMaintenancePage from "./pages/modules/PlansMaintenancePage";
@@ -34,8 +53,17 @@ import QRCodesPage from "./pages/modules/QRCodesPage";
 import ExportsPage from "./pages/modules/ExportsPage";
 import SimpleModulePage from "./pages/modules/SimpleModulePage";
 
+
+/* ============================================================
+   STYLE
+============================================================ */
+
 import "./styles/GreenWhiteTheme.css";
 
+
+/* ============================================================
+   LAYOUT PROTÉGÉ
+============================================================ */
 
 function ProtectedLayout({
   children,
@@ -44,20 +72,27 @@ function ProtectedLayout({
 }) {
   return (
     <ProtectedRoute>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        {children}
+      </AppLayout>
     </ProtectedRoute>
   );
 }
 
 
+/* ============================================================
+   APPLICATION
+============================================================ */
+
 export default function App() {
   return (
     <BrowserRouter>
+
       <Routes>
 
-        {/* =========================
+        {/* =====================================================
             AUTHENTIFICATION
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/login"
@@ -65,9 +100,19 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
+            QR PUBLIC
+        ===================================================== */}
+
+        <Route
+          path="/qr/:code"
+          element={<QrPublic />}
+        />
+
+
+        {/* =====================================================
             TABLEAU DE BORD
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/"
@@ -79,9 +124,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             KPI
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/kpi"
@@ -96,9 +141,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             ÉQUIPEMENTS
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/equipements"
@@ -110,26 +155,23 @@ export default function App() {
         />
 
 
-        {/* =========================
-            GAMMES
-        ========================== */}
+        {/* =====================================================
+            LISTE DES GAMMES
+        ===================================================== */}
 
         <Route
           path="/gammes"
           element={
             <ProtectedLayout>
-              <SimpleModulePage
-                title="Gammes opératoires"
-                subtitle="Gestion des gammes de maintenance"
-              />
+              <GammesList />
             </ProtectedLayout>
           }
         />
 
 
-        {/* =========================
-            WIZARD CRÉATION GAMME
-        ========================== */}
+        {/* =====================================================
+            WIZARD NOUVELLE GAMME
+        ===================================================== */}
 
         <Route
           path="/gammes/nouvelle"
@@ -139,6 +181,9 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+
+        {/* Compatibilité ancienne route */}
 
         <Route
           path="/gammes/new"
@@ -151,9 +196,37 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
+            DÉTAIL D'UNE GAMME
+        ===================================================== */}
+
+        <Route
+          path="/gammes/:id"
+          element={
+            <ProtectedLayout>
+              <GammeDetail />
+            </ProtectedLayout>
+          }
+        />
+
+
+        {/* =====================================================
+            MODIFICATION D'UNE GAMME
+        ===================================================== */}
+
+        <Route
+          path="/gammes/:id/modifier"
+          element={
+            <ProtectedLayout>
+              <GammeEdit />
+            </ProtectedLayout>
+          }
+        />
+
+
+        {/* =====================================================
             VERSIONS
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/versions"
@@ -165,9 +238,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             PLANS DE MAINTENANCE
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/plans-maintenance"
@@ -179,9 +252,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             EPI
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/epis"
@@ -191,6 +264,7 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
 
         <Route
           path="/referentiels/epis"
@@ -202,9 +276,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             RISQUES
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/risques"
@@ -214,6 +288,7 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
 
         <Route
           path="/referentiels/risques"
@@ -225,9 +300,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             OUTILLAGES
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/outillages"
@@ -237,6 +312,7 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
 
         <Route
           path="/referentiels/outillages"
@@ -248,9 +324,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             PIÈCES DE RECHANGE
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/pieces"
@@ -262,9 +338,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             DOCUMENTS
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/documents"
@@ -276,9 +352,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             QR CODES
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/qr-codes"
@@ -290,9 +366,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             EXPORTS
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/exports"
@@ -304,9 +380,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             PARAMÈTRES
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="/parametres"
@@ -321,9 +397,9 @@ export default function App() {
         />
 
 
-        {/* =========================
+        {/* =====================================================
             ROUTE INCONNUE
-        ========================== */}
+        ===================================================== */}
 
         <Route
           path="*"
@@ -336,6 +412,7 @@ export default function App() {
         />
 
       </Routes>
+
     </BrowserRouter>
   );
 }
