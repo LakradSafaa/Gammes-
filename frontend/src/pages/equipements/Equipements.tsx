@@ -20,15 +20,12 @@ import "./Equipements.css";
 
 type Equipement = {
   id: string;
-
   code: string;
   nom: string;
-
   constructeur?: string | null;
   type?: string | null;
   reference?: string | null;
   description?: string | null;
-
   actif?: boolean;
 };
 
@@ -94,7 +91,6 @@ const emptyForm: EquipmentForm = {
 
 export default function Equipements() {
   const [items, setItems] = useState<Equipement[]>([]);
-
   const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -113,7 +109,7 @@ export default function Equipements() {
 
 
   /* ============================================================
-     CHARGEMENT DES ÉQUIPEMENTS
+     CHARGEMENT
   ============================================================ */
 
   const load = async () => {
@@ -128,10 +124,7 @@ export default function Equipements() {
       setItems(extractResults(response.data));
     } catch (err) {
       console.error(err);
-
-      setError(
-        "Impossible de charger les équipements."
-      );
+      setError("Impossible de charger les équipements.");
     } finally {
       setLoading(false);
     }
@@ -148,9 +141,7 @@ export default function Equipements() {
   ============================================================ */
 
   const filtered = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
+    const query = search.trim().toLowerCase();
 
     if (!query) {
       return items;
@@ -180,12 +171,9 @@ export default function Equipements() {
 
   const startCreate = () => {
     setEditing(null);
-
     setForm(emptyForm);
-
     setError("");
     setMessage("");
-
     setOpen(true);
   };
 
@@ -194,26 +182,20 @@ export default function Equipements() {
      MODIFIER
   ============================================================ */
 
-  const startEdit = (
-    item: Equipement
-  ) => {
+  const startEdit = (item: Equipement) => {
     setEditing(item);
 
     setForm({
       code: item.code ?? "",
       nom: item.nom ?? "",
-      constructeur:
-        item.constructeur ?? "",
+      constructeur: item.constructeur ?? "",
       type: item.type ?? "",
-      reference:
-        item.reference ?? "",
-      description:
-        item.description ?? "",
+      reference: item.reference ?? "",
+      description: item.description ?? "",
     });
 
     setError("");
     setMessage("");
-
     setOpen(true);
   };
 
@@ -227,51 +209,36 @@ export default function Equipements() {
   ) => {
     event.preventDefault();
 
-    if (
-      !form.code.trim() ||
-      !form.nom.trim()
-    ) {
+    if (!form.code.trim() || !form.nom.trim()) {
       setError(
         "Le code et le nom de l'équipement sont obligatoires."
       );
-
       return;
     }
 
-
     const payload = {
-      code: form.code
-        .trim()
-        .toUpperCase(),
-
+      code: form.code.trim().toUpperCase(),
       nom: form.nom.trim(),
 
       constructeur:
-        form.constructeur.trim() ||
-        null,
+        form.constructeur.trim() || null,
 
       type:
-        form.type.trim() ||
-        null,
+        form.type.trim() || null,
 
       reference:
-        form.reference.trim() ||
-        null,
+        form.reference.trim() || null,
 
       description:
-        form.description.trim() ||
-        null,
+        form.description.trim() || null,
 
       actif: true,
     };
 
-
     try {
       setSaving(true);
-
       setError("");
       setMessage("");
-
 
       if (editing) {
         await api.patch(
@@ -279,22 +246,19 @@ export default function Equipements() {
           payload
         );
 
-        setMessage(
-          "Équipement modifié avec succès."
-        );
+        setMessage("Équipement modifié avec succès.");
       } else {
         await api.post(
           "/equipements/",
           payload
         );
 
-        setMessage(
-          "Équipement ajouté avec succès."
-        );
+        setMessage("Équipement ajouté avec succès.");
       }
 
-
       setOpen(false);
+      setEditing(null);
+      setForm(emptyForm);
 
       await load();
     } catch (err: unknown) {
@@ -339,22 +303,18 @@ export default function Equipements() {
      SUPPRIMER
   ============================================================ */
 
-  const remove = async (
-    item: Equipement
-  ) => {
+  const remove = async (item: Equipement) => {
     const name = item.code
       ? `${item.code} — ${item.nom}`
       : item.nom;
 
-    const confirmation =
-      window.confirm(
-        `Supprimer l'équipement « ${name} » ?`
-      );
+    const confirmation = window.confirm(
+      `Supprimer l'équipement « ${name} » ?`
+    );
 
     if (!confirmation) {
       return;
     }
-
 
     try {
       setError("");
@@ -366,14 +326,11 @@ export default function Equipements() {
 
       setItems((current) =>
         current.filter(
-          (row) =>
-            row.id !== item.id
+          (row) => row.id !== item.id
         )
       );
 
-      setMessage(
-        "Équipement supprimé."
-      );
+      setMessage("Équipement supprimé.");
     } catch (err: unknown) {
       console.error(err);
 
@@ -394,8 +351,7 @@ export default function Equipements() {
         };
 
         messageErreur =
-          axiosError.response
-            ?.data?.detail ||
+          axiosError.response?.data?.detail ||
           messageErreur;
       }
 
@@ -429,22 +385,15 @@ export default function Equipements() {
   return (
     <div className="equipment-page">
 
-      {/* ======================================================
-          EN-TÊTE
-      ====================================================== */}
-
       <header className="equipment-header">
-
         <div>
           <h1>Équipements</h1>
 
           <p>
-            Ajoutez, modifiez ou supprimez
-            les équipements utilisés dans
-            le Wizard.
+            Ajoutez, modifiez ou supprimez les équipements
+            utilisés dans le Wizard.
           </p>
         </div>
-
 
         <button
           type="button"
@@ -452,16 +401,10 @@ export default function Equipements() {
           onClick={startCreate}
         >
           <Plus size={18} />
-
           Nouvel équipement
         </button>
-
       </header>
 
-
-      {/* ======================================================
-          MESSAGES
-      ====================================================== */}
 
       {error && (
         <div className="equipment-alert error">
@@ -477,30 +420,21 @@ export default function Equipements() {
       )}
 
 
-      {/* ======================================================
-          TABLEAU
-      ====================================================== */}
-
       <section className="equipment-card">
 
         <div className="equipment-toolbar">
 
           <label className="equipment-search">
-
             <Search size={18} />
 
             <input
               value={search}
               onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
+                setSearch(event.target.value)
               }
               placeholder="Rechercher un équipement..."
             />
-
           </label>
-
 
           <span>
             {filtered.length} équipement(s)
@@ -524,11 +458,9 @@ export default function Equipements() {
               </tr>
             </thead>
 
-
             <tbody>
 
               {filtered.length === 0 ? (
-
                 <tr>
                   <td
                     colSpan={6}
@@ -537,11 +469,8 @@ export default function Equipements() {
                     Aucun équipement.
                   </td>
                 </tr>
-
               ) : (
-
                 filtered.map((item) => (
-
                   <tr key={item.id}>
 
                     <td>
@@ -550,13 +479,10 @@ export default function Equipements() {
                       </strong>
                     </td>
 
-                    <td>
-                      {item.nom}
-                    </td>
+                    <td>{item.nom}</td>
 
                     <td>
-                      {item.constructeur ||
-                        "—"}
+                      {item.constructeur || "—"}
                     </td>
 
                     <td>
@@ -564,12 +490,10 @@ export default function Equipements() {
                     </td>
 
                     <td>
-                      {item.reference ||
-                        "—"}
+                      {item.reference || "—"}
                     </td>
 
                     <td>
-
                       <div className="eq-actions">
 
                         <button
@@ -581,7 +505,6 @@ export default function Equipements() {
                         >
                           <Pencil size={16} />
                         </button>
-
 
                         <button
                           type="button"
@@ -595,13 +518,10 @@ export default function Equipements() {
                         </button>
 
                       </div>
-
                     </td>
 
                   </tr>
-
                 ))
-
               )}
 
             </tbody>
@@ -613,12 +533,7 @@ export default function Equipements() {
       </section>
 
 
-      {/* ======================================================
-          MODALE
-      ====================================================== */}
-
       {open && (
-
         <div
           className="equipment-modal-backdrop"
           onMouseDown={() => {
@@ -636,14 +551,9 @@ export default function Equipements() {
             }
           >
 
-            {/* ================================================
-                TITRE MODALE
-            ================================================ */}
-
             <div className="equipment-modal-head">
 
               <div>
-
                 <h2>
                   {editing
                     ? "Modifier l'équipement"
@@ -651,13 +561,10 @@ export default function Equipements() {
                 </h2>
 
                 <p>
-                  Ces informations seront
-                  disponibles dans la création
-                  d'une gamme.
+                  Ces informations seront disponibles
+                  dans la création d'une gamme.
                 </p>
-
               </div>
-
 
               <button
                 type="button"
@@ -671,171 +578,114 @@ export default function Equipements() {
             </div>
 
 
-            {/* ================================================
-                FORMULAIRE
-            ================================================ */}
-
             <div className="equipment-form-grid">
 
               <label>
-
-                <span>
-                  Code *
-                </span>
+                <span>Code *</span>
 
                 <input
                   required
                   value={form.code}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        code:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      code: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
 
               <label>
-
-                <span>
-                  Nom *
-                </span>
+                <span>Nom *</span>
 
                 <input
                   required
                   value={form.nom}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        nom:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      nom: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
 
               <label>
-
-                <span>
-                  Constructeur
-                </span>
+                <span>Constructeur</span>
 
                 <input
-                  value={
-                    form.constructeur
-                  }
+                  value={form.constructeur}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        constructeur:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      constructeur: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
 
               <label>
-
-                <span>
-                  Type machine
-                </span>
+                <span>Type machine</span>
 
                 <input
                   value={form.type}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        type:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      type: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
 
               <label className="equipment-span-2">
-
-                <span>
-                  Référence machine
-                </span>
+                <span>Référence machine</span>
 
                 <input
                   value={form.reference}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        reference:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      reference: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
 
               <label className="equipment-span-2">
-
-                <span>
-                  Description
-                </span>
+                <span>Description</span>
 
                 <textarea
                   rows={4}
-                  value={
-                    form.description
-                  }
+                  value={form.description}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-                        description:
-                          event.target
-                            .value,
-                      })
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
                   }
                 />
-
               </label>
 
             </div>
 
-
-            {/* ================================================
-                BOUTONS
-            ================================================ */}
 
             <div className="equipment-modal-actions">
 
               <button
                 type="button"
                 className="equipment-cancel"
-                onClick={() =>
-                  setOpen(false)
-                }
+                disabled={saving}
+                onClick={() => {
+                  setOpen(false);
+                  setEditing(null);
+                  setForm(emptyForm);
+                }}
               >
                 Annuler
               </button>
@@ -846,7 +696,6 @@ export default function Equipements() {
                 className="equipment-create"
                 disabled={saving}
               >
-
                 {saving && (
                   <LoaderCircle
                     className="spin"
@@ -855,7 +704,6 @@ export default function Equipements() {
                 )}
 
                 Enregistrer
-
               </button>
 
             </div>
@@ -863,7 +711,6 @@ export default function Equipements() {
           </form>
 
         </div>
-
       )}
 
     </div>
