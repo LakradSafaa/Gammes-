@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Count, Max
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -891,31 +892,22 @@ class GammeVersionViewSet(BaseModelViewSet):
         version = self.get_object()
 
         try:
-
-            fichier = generate_pdf(
-                version
-            )
-
+            data, filename = generate_pdf(version)
         except Exception as exc:
-
             return Response(
-                {
-                    "detail": str(exc),
-                },
+                {"detail": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = FichierGenereSerializer(
-            fichier,
-            context={
-                "request": request,
-            },
+        response = HttpResponse(
+            data,
+            content_type="application/pdf",
         )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"'
         )
+        response["Cache-Control"] = "no-store"
+        return response
 
     @action(
         detail=True,
@@ -930,31 +922,25 @@ class GammeVersionViewSet(BaseModelViewSet):
         version = self.get_object()
 
         try:
-
-            fichier = generate_docx(
-                version
-            )
-
+            data, filename = generate_docx(version)
         except Exception as exc:
-
             return Response(
-                {
-                    "detail": str(exc),
-                },
+                {"detail": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = FichierGenereSerializer(
-            fichier,
-            context={
-                "request": request,
-            },
+        response = HttpResponse(
+            data,
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            ),
         )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"'
         )
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 # ============================================================
