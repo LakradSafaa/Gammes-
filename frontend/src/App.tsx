@@ -12,13 +12,15 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
 import DashboardPage from "./pages/dashboard/DashboardPage";
-import EquipementsPage from "./pages/equipements/EquipementsPage";
 
-import GammesList from "./pages/gammes/GammesList";
+/*
+  IMPORTANT :
+  ton fichier réel est :
+  src/pages/equipements/Equipements.tsx
+*/
+import EquipementsPage from "./pages/equipements/Equipements";
+
 import GammeCreate from "./pages/gammes/GammeCreate";
-import GammeDetail from "./pages/gammes/GammeDetail";
-import GammeEdit from "./pages/gammes/GammeEdit";
-import QrPublic from "./pages/gammes/QrPublic";
 
 import EPIPage from "./pages/referentiels/EPIPage";
 import RisquesPage from "./pages/referentiels/RisquesPage";
@@ -53,8 +55,19 @@ export default function App() {
     <BrowserRouter>
       <Routes>
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/qr/:code" element={<QrPublic />} />
+        {/* =========================
+            AUTHENTIFICATION
+        ========================== */}
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+
+        {/* =========================
+            TABLEAU DE BORD
+        ========================== */}
 
         <Route
           path="/"
@@ -64,6 +77,11 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+
+        {/* =========================
+            KPI
+        ========================== */}
 
         <Route
           path="/kpi"
@@ -77,6 +95,11 @@ export default function App() {
           }
         />
 
+
+        {/* =========================
+            ÉQUIPEMENTS
+        ========================== */}
+
         <Route
           path="/equipements"
           element={
@@ -86,14 +109,27 @@ export default function App() {
           }
         />
 
+
+        {/* =========================
+            GAMMES
+        ========================== */}
+
         <Route
           path="/gammes"
           element={
             <ProtectedLayout>
-              <GammesList />
+              <SimpleModulePage
+                title="Gammes opératoires"
+                subtitle="Gestion des gammes de maintenance"
+              />
             </ProtectedLayout>
           }
         />
+
+
+        {/* =========================
+            WIZARD CRÉATION GAMME
+        ========================== */}
 
         <Route
           path="/gammes/nouvelle"
@@ -105,22 +141,19 @@ export default function App() {
         />
 
         <Route
-          path="/gammes/:id"
+          path="/gammes/new"
           element={
-            <ProtectedLayout>
-              <GammeDetail />
-            </ProtectedLayout>
+            <Navigate
+              to="/gammes/nouvelle"
+              replace
+            />
           }
         />
 
-        <Route
-          path="/gammes/:id/modifier"
-          element={
-            <ProtectedLayout>
-              <GammeEdit />
-            </ProtectedLayout>
-          }
-        />
+
+        {/* =========================
+            VERSIONS
+        ========================== */}
 
         <Route
           path="/versions"
@@ -131,6 +164,11 @@ export default function App() {
           }
         />
 
+
+        {/* =========================
+            PLANS DE MAINTENANCE
+        ========================== */}
+
         <Route
           path="/plans-maintenance"
           element={
@@ -139,6 +177,11 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+
+        {/* =========================
+            EPI
+        ========================== */}
 
         <Route
           path="/epis"
@@ -150,6 +193,20 @@ export default function App() {
         />
 
         <Route
+          path="/referentiels/epis"
+          element={
+            <ProtectedLayout>
+              <EPIPage />
+            </ProtectedLayout>
+          }
+        />
+
+
+        {/* =========================
+            RISQUES
+        ========================== */}
+
+        <Route
           path="/risques"
           element={
             <ProtectedLayout>
@@ -157,6 +214,20 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+        <Route
+          path="/referentiels/risques"
+          element={
+            <ProtectedLayout>
+              <RisquesPage />
+            </ProtectedLayout>
+          }
+        />
+
+
+        {/* =========================
+            OUTILLAGES
+        ========================== */}
 
         <Route
           path="/outillages"
@@ -168,6 +239,20 @@ export default function App() {
         />
 
         <Route
+          path="/referentiels/outillages"
+          element={
+            <ProtectedLayout>
+              <OutillagesPage />
+            </ProtectedLayout>
+          }
+        />
+
+
+        {/* =========================
+            PIÈCES DE RECHANGE
+        ========================== */}
+
+        <Route
           path="/pieces"
           element={
             <ProtectedLayout>
@@ -175,6 +260,11 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+
+        {/* =========================
+            DOCUMENTS
+        ========================== */}
 
         <Route
           path="/documents"
@@ -185,6 +275,11 @@ export default function App() {
           }
         />
 
+
+        {/* =========================
+            QR CODES
+        ========================== */}
+
         <Route
           path="/qr-codes"
           element={
@@ -194,6 +289,11 @@ export default function App() {
           }
         />
 
+
+        {/* =========================
+            EXPORTS
+        ========================== */}
+
         <Route
           path="/exports"
           element={
@@ -202,6 +302,11 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+
+
+        {/* =========================
+            PARAMÈTRES
+        ========================== */}
 
         <Route
           path="/parametres"
@@ -215,7 +320,20 @@ export default function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* =========================
+            ROUTE INCONNUE
+        ========================== */}
+
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
+        />
 
       </Routes>
     </BrowserRouter>
