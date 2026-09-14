@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import {
   FileDown,
   FileText,
@@ -8,71 +7,87 @@ import {
 
 import api from "../../api/axios";
 
-
-interface ExportButtonsProps {
+interface Props {
   versionId: string;
   compact?: boolean;
 }
 
+function getHeaderString(
+  value: unknown,
+): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item))
+      .join(", ");
+  }
+
+  return undefined;
+}
+
+function filenameFromDisposition(
+  disposition: string | undefined,
+  fallback: string,
+) {
+  if (!disposition) {
+    return fallback;
+  }
+
+  const utf8Match = disposition.match(
+    /filename\*=UTF-8''([^;]+)/i,
+  );
+
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(
+      utf8Match[1].replace(/["']/g, ""),
+    );
+  }
+
+  const simpleMatch = disposition.match(
+    /filename="?([^";]+)"?/i,
+  );
+
+  return simpleMatch?.[1] || fallback;
+}
 
 async function extractBackendError(
   error: any,
-  fallbackMessage: string,
-): Promise<string> {
-  const responseData =
-    error?.response?.data;
+  fallback: string,
+) {
+  const responseData = error?.response?.data;
 
-  /*
-   * Avec responseType: "blob",
-   * même une erreur JSON peut arriver
-   * sous forme de Blob.
-   */
-  if (
-    responseData instanceof Blob
-  ) {
+  if (responseData instanceof Blob) {
     try {
-      const text =
-        await responseData.text();
+      const text = await responseData.text();
+      const parsed = JSON.parse(text);
 
-      const parsed =
-        JSON.parse(text);
-
-      if (
-        parsed?.detail
-      ) {
-        return String(
-          parsed.detail,
-        );
-      }
+      return (
+        parsed?.detail ||
+        fallback
+      );
     } catch {
-      return fallbackMessage;
+      return fallback;
     }
   }
 
-  if (
-    responseData?.detail
-  ) {
-    return String(
-      responseData.detail,
-    );
-  }
-
-  if (
-    error?.message
-  ) {
-    return String(
-      error.message,
-    );
-  }
-
-  return fallbackMessage;
+  return (
+    responseData?.detail ||
+    error?.message ||
+    fallback
+  );
 }
-
 
 export default function ExportButtons({
   versionId,
   compact = false,
-}: ExportButtonsProps) {
+}: Props) {
   const [
     loading,
     setLoading,
@@ -87,177 +102,119 @@ export default function ExportButtons({
     setError,
   ] = useState("");
 
+  const run = async (
+    type: "pdf" | "word",
+  ) => {
+    try {
+      setLoading(type);
+      setError("");
 
-  const exportDocument =
-    async (
-      format:
-        | "pdf"
-        | "word",
-    ) => {
-      try {
-        setLoading(
-          format,
-        );
-
-        setError("");
-
-        /*
-         * IMPORTANT :
-         * responseType doit être blob,
-         * car le backend retourne
-         * directement le fichier.
-         */
-        const response =
-          await api.post(
-            `/versions/${versionId}/export_${format}/`,
-            {},
-            {
-              responseType:
-                "blob",
-            },
-          );
-
-
-        /*
-         * On ne lit volontairement PAS
-         * response.headers["content-type"].
-         *
-         * Axios peut typer ce header comme :
-         *
-         * string |
-         * number |
-         * true |
-         * AxiosHeaders |
-         * string[]
-         *
-         * alors que Blob attend uniquement
-         * une chaîne pour son type MIME.
-         *
-         * On définit donc directement
-         * le MIME selon le format.
-         */
-        const mimeType =
-          format === "pdf"
-            ? "application/pdf"
-            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-
-        const extension =
-          format === "pdf"
-            ? "pdf"
-            : "docx";
-
-
-        const filename =
-          `gamme_${versionId}.${extension}`;
-
-
-        /*
-         * response.data est déjà un Blob
-         * avec Axios lorsque
-         * responseType = "blob".
-         *
-         * On crée néanmoins un Blob
-         * avec notre MIME contrôlé.
-         */
-        const blob =
-          new Blob(
-            [
-              response.data,
-            ],
-            {
-              type:
-                mimeType,
-            },
-          );
-
-
-        /*
-         * Création d'une URL temporaire
-         * dans le navigateur.
-         */
-        const objectUrl =
-          window.URL
-            .createObjectURL(
-              blob,
-            );
-
-
-        /*
-         * Création temporaire
-         * d'un lien <a>
-         * pour déclencher
-         * le téléchargement.
-         */
-        const link =
-          document
-            .createElement(
-              "a",
-            );
-
-
-        link.href =
-          objectUrl;
-
-        link.download =
-          filename;
-
-        link.style.display =
-          "none";
-
-
-        document.body
-          .appendChild(
-            link,
-          );
-
-
-        link.click();
-
-
-        /*
-         * Nettoyage.
-         */
-        link.remove();
-
-
-        window.setTimeout(
-          () => {
-            window.URL
-              .revokeObjectURL(
-                objectUrl,
-              );
+      const response =
+        await api.post(
+          `/versions/${versionId}/export_${type}/`,
+          {},
+          {
+            responseType: "blob",
           },
-          1500,
         );
-      } catch (
-        err: any
-      ) {
-        console.error(
-          `Erreur export ${format}:`,
+
+      const fallback =
+        type === "pdf"
+          ? `gamme_${versionId}.pdf`
+          : `gamme_${versionId}.docx`;
+
+      const contentDisposition =
+        getHeaderString(
+          response.headers[
+            "content-disposition"
+          ],
+        );
+
+      const contentType =
+        getHeaderString(
+          response.headers[
+            "content-type"
+          ],
+        );
+
+      const filename =
+        filenameFromDisposition(
+          contentDisposition,
+          fallback,
+        );
+
+      const blob =
+        new Blob(
+          [response.data],
+          {
+            type:
+              contentType ||
+              (
+                type === "pdf"
+                  ? "application/pdf"
+                  : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              ),
+          },
+        );
+
+      const objectUrl =
+        URL.createObjectURL(
+          blob,
+        );
+
+      const link =
+        document.createElement(
+          "a",
+        );
+
+      link.href =
+        objectUrl;
+
+      link.download =
+        filename;
+
+      link.style.display =
+        "none";
+
+      document.body.appendChild(
+        link,
+      );
+
+      link.click();
+
+      link.remove();
+
+      window.setTimeout(
+        () =>
+          URL.revokeObjectURL(
+            objectUrl,
+          ),
+        1500,
+      );
+    } catch (
+      err: any
+    ) {
+      console.error(
+        err,
+      );
+
+      const message =
+        await extractBackendError(
           err,
+          type === "pdf"
+            ? "Erreur lors de la génération du PDF."
+            : "Erreur lors de la génération du document Word.",
         );
 
-
-        const message =
-          await extractBackendError(
-            err,
-            format === "pdf"
-              ? "Erreur lors de la génération du PDF."
-              : "Erreur lors de la génération du document Word.",
-          );
-
-
-        setError(
-          message,
-        );
-      } finally {
-        setLoading(
-          null,
-        );
-      }
-    };
-
+      setError(
+        message,
+      );
+    } finally {
+      setLoading(
+        null,
+      );
+    }
+  };
 
   return (
     <div
@@ -268,88 +225,72 @@ export default function ExportButtons({
       }
     >
       <button
-        type="button"
         className="module-button module-button-pdf"
+        type="button"
         disabled={
           loading !== null
         }
         onClick={() =>
-          void exportDocument(
+          void run(
             "pdf",
           )
         }
       >
         {
           loading ===
-          "pdf"
-            ? (
-              <LoaderCircle
-                size={18}
-                className="spin"
-              />
-            )
-            : (
-              <FileDown
-                size={18}
-              />
-            )
+          "pdf" ? (
+            <LoaderCircle
+              className="spin"
+              size={18}
+            />
+          ) : (
+            <FileDown
+              size={18}
+            />
+          )
         }
 
         {
           !compact &&
-          (
-            <span>
-              PDF
-            </span>
-          )
+          "PDF"
         }
       </button>
 
-
       <button
-        type="button"
         className="module-button module-button-word"
+        type="button"
         disabled={
           loading !== null
         }
         onClick={() =>
-          void exportDocument(
+          void run(
             "word",
           )
         }
       >
         {
           loading ===
-          "word"
-            ? (
-              <LoaderCircle
-                size={18}
-                className="spin"
-              />
-            )
-            : (
-              <FileText
-                size={18}
-              />
-            )
+          "word" ? (
+            <LoaderCircle
+              className="spin"
+              size={18}
+            />
+          ) : (
+            <FileText
+              size={18}
+            />
+          )
         }
 
         {
           !compact &&
-          (
-            <span>
-              Word
-            </span>
-          )
+          "Word"
         }
       </button>
 
-
       {
         error && (
-          <span
-            className="export-error"
-          >
+          <span className="export-error">
             {error}
           </span>
         )
