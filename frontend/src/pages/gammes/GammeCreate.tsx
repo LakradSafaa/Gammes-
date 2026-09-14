@@ -1,382 +1,587 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import type { ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
-  LoaderCircle,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
   Save,
+  Trash2,
+  Upload,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 import api from "../../api/axios";
 import "./GammeCreate.css";
 
-type PaginatedResponse<T> = {
-  count?: number;
-  next?: string | null;
-  previous?: string | null;
-  results: T[];
-};
+
+/* ============================================================
+   TYPES
+   ============================================================ */
+
+type ApiList<T> =
+  | T[]
+  | {
+      results?: T[];
+    };
+
 
 type Equipement = {
   id: string;
-  code?: string | null;
+  code?: string;
   nom: string;
   constructeur?: string | null;
   type?: string | null;
   reference?: string | null;
-  actif?: boolean;
 };
 
-type SimpleRef = {
+
+type SimpleItem = {
   id: string;
   nom: string;
   description?: string | null;
   image_url?: string | null;
 };
 
+
 type Piece = {
   id: string;
   code?: string | null;
   nom: string;
+  constructeur?: string | null;
   reference?: string | null;
+  description?: string | null;
+  image_url?: string | null;
 };
 
-type RefValue = {
-  id?: string;
+
+type Referentiel = {
+  id: string;
+  categorie?: string;
   code: string;
   libelle: string;
   ordre?: number;
   actif?: boolean;
 };
 
+
+type Gamme = {
+  id: string;
+  code: string;
+  designation: string;
+  abreviation?: string | null;
+  equipement?: string | null;
+};
+
+
 type GammeVersion = {
   id: string;
   numero_version?: number;
   code_version?: string;
+  statut?: string;
 };
 
-type FormState = {
-  code: string;
-  designation: string;
-  abreviation: string;
-  equipement: string;
-  corps_metier: string;
-  type_redaction: string;
-  image_url: string;
-  type_maintenance: string;
-  periodicite: string;
-  main_oeuvre: number;
-  type_arret: string;
-  modifications: string;
+
+type QuantityMap = Record<string, number>;
+
+
+type WizardStep = {
+  id: number;
+  label: string;
 };
 
-const initialForm: FormState = {
-  code: "",
-  designation: "",
-  abreviation: "",
-  equipement: "",
-  corps_metier: "",
-  type_redaction: "redaction_complete",
-  image_url: "",
-  type_maintenance: "preventif",
-  periodicite: "Mensuelle",
-  main_oeuvre: 1,
-  type_arret: "aucun",
-  modifications: "Création initiale de la gamme",
-};
 
-const fallbackMaintenance: RefValue[] = [
-  { code: "preventif", libelle: "Préventive" },
-  { code: "correctif", libelle: "Corrective" },
-  { code: "amelioratif", libelle: "Améliorative" },
-  { code: "conditionnel", libelle: "Conditionnelle" },
-  { code: "predictif", libelle: "Prédictive" },
+/* ============================================================
+   CONSTANTES
+   ============================================================ */
+
+const WIZARD_STEPS: WizardStep[] = [
+  {
+    id: 1,
+    label: "Informations",
+  },
+  {
+    id: 2,
+    label: "Maintenance",
+  },
+  {
+    id: 3,
+    label: "Sécurité",
+  },
+  {
+    id: 4,
+    label: "Moyens",
+  },
+  {
+    id: 5,
+    label: "Vérification",
+  },
 ];
 
-const fallbackPeriodicites: RefValue[] = [
-  { code: "À chaque intervention", libelle: "À chaque intervention" },
-  { code: "Journalière", libelle: "Journalière" },
-  { code: "Hebdomadaire", libelle: "Hebdomadaire" },
-  { code: "Mensuelle", libelle: "Mensuelle" },
-  { code: "Trimestrielle", libelle: "Trimestrielle" },
-  { code: "Semestrielle", libelle: "Semestrielle" },
-  { code: "Annuelle", libelle: "Annuelle" },
-  { code: "2 ans", libelle: "2 ans" },
-  { code: "3 ans", libelle: "3 ans" },
-  { code: "Selon compteur", libelle: "Selon compteur" },
-  { code: "Conditionnelle", libelle: "Conditionnelle" },
+
+const FALLBACK_TYPE_MAINTENANCE: Referentiel[] = [
+  {
+    id: "preventif",
+    code: "preventif",
+    libelle: "Préventive",
+  },
+  {
+    id: "correctif",
+    code: "correctif",
+    libelle: "Corrective",
+  },
+  {
+    id: "amelioratif",
+    code: "amelioratif",
+    libelle: "Améliorative",
+  },
+  {
+    id: "conditionnel",
+    code: "conditionnel",
+    libelle: "Conditionnelle",
+  },
+  {
+    id: "predictif",
+    code: "predictif",
+    libelle: "Prédictive",
+  },
 ];
 
-const fallbackArrets: RefValue[] = [
-  { code: "aucun", libelle: "Aucun arrêt" },
-  { code: "equipement", libelle: "Arrêt équipement" },
-  { code: "partiel", libelle: "Arrêt partiel" },
-  { code: "ligne", libelle: "Arrêt ligne" },
-  { code: "total", libelle: "Arrêt total" },
+
+const FALLBACK_PERIODICITE: Referentiel[] = [
+  {
+    id: "chaque_intervention",
+    code: "chaque_intervention",
+    libelle: "À chaque intervention",
+  },
+  {
+    id: "journaliere",
+    code: "journaliere",
+    libelle: "Journalière",
+  },
+  {
+    id: "hebdomadaire",
+    code: "hebdomadaire",
+    libelle: "Hebdomadaire",
+  },
+  {
+    id: "mensuelle",
+    code: "mensuelle",
+    libelle: "Mensuelle",
+  },
+  {
+    id: "trimestrielle",
+    code: "trimestrielle",
+    libelle: "Trimestrielle",
+  },
+  {
+    id: "semestrielle",
+    code: "semestrielle",
+    libelle: "Semestrielle",
+  },
+  {
+    id: "annuelle",
+    code: "annuelle",
+    libelle: "Annuelle",
+  },
+  {
+    id: "2_ans",
+    code: "2_ans",
+    libelle: "2 ans",
+  },
+  {
+    id: "3_ans",
+    code: "3_ans",
+    libelle: "3 ans",
+  },
+  {
+    id: "selon_compteur",
+    code: "selon_compteur",
+    libelle: "Selon compteur",
+  },
+  {
+    id: "conditionnelle",
+    code: "conditionnelle",
+    libelle: "Conditionnelle",
+  },
 ];
 
-const wizardSteps = [
-  "Informations",
-  "Maintenance",
-  "Sécurité",
-  "Moyens",
-  "Vérification",
+
+const FALLBACK_TYPE_ARRET: Referentiel[] = [
+  {
+    id: "aucun",
+    code: "aucun",
+    libelle: "Aucun arrêt",
+  },
+  {
+    id: "equipement",
+    code: "equipement",
+    libelle: "Arrêt équipement",
+  },
+  {
+    id: "partiel",
+    code: "partiel",
+    libelle: "Arrêt partiel",
+  },
+  {
+    id: "ligne",
+    code: "ligne",
+    libelle: "Arrêt ligne",
+  },
+  {
+    id: "total",
+    code: "total",
+    libelle: "Arrêt total",
+  },
 ];
 
-function extractResults<T>(data: T[] | PaginatedResponse<T>): T[] {
-  return Array.isArray(data) ? data : data.results ?? [];
-}
 
-function normalizeReferenceValues(
-  values: RefValue[],
-  fallback: RefValue[],
-): RefValue[] {
-  if (!Array.isArray(values) || values.length === 0) {
-    return fallback;
+const FALLBACK_CORPS_METIER: Referentiel[] = [
+  {
+    id: "electrique",
+    code: "electrique",
+    libelle: "Electrique",
+  },
+  {
+    id: "mecanique",
+    code: "mecanique",
+    libelle: "Mecanique",
+  },
+  {
+    id: "plombier",
+    code: "plombier",
+    libelle: "Plombier",
+  },
+  {
+    id: "hvac",
+    code: "hvac",
+    libelle: "HVAC",
+  },
+];
+
+
+const FALLBACK_TYPE_REDACTION: Referentiel[] = [
+  {
+    id: "redaction_complete",
+    code: "redaction_complete",
+    libelle: "Rédaction Complète",
+  },
+  {
+    id: "revision",
+    code: "revision",
+    libelle: "Révision",
+  },
+];
+
+
+/* ============================================================
+   FONCTIONS UTILITAIRES
+   ============================================================ */
+
+function extractResults<T>(data: ApiList<T> | undefined | null): T[] {
+  if (!data) {
+    return [];
   }
 
-  return values
-    .filter((item) => item.actif !== false)
-    .slice()
-    .sort(
-      (a, b) =>
-        Number(a.ordre ?? 0) - Number(b.ordre ?? 0),
-    );
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data.results)) {
+    return data.results;
+  }
+
+  return [];
 }
+
+
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error
+  ) {
+    const axiosError = error as {
+      response?: {
+        data?: unknown;
+      };
+    };
+
+    const data = axiosError.response?.data;
+
+    if (typeof data === "string") {
+      return data;
+    }
+
+    if (data && typeof data === "object") {
+      try {
+        return JSON.stringify(data);
+      } catch {
+        return "Une erreur est survenue.";
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Une erreur est survenue.";
+}
+
+
+/* ============================================================
+   COMPOSANT
+   ============================================================ */
 
 export default function GammeCreate() {
   const navigate = useNavigate();
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [form, setForm] = useState<FormState>(initialForm);
+  /* ----------------------------------------------------------
+     WIZARD
+     ---------------------------------------------------------- */
+
+  const [currentStep, setCurrentStep] = useState<number>(1);
+
+
+  /* ----------------------------------------------------------
+     CHARGEMENT
+     ---------------------------------------------------------- */
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+
+  /* ----------------------------------------------------------
+     DONNÉES PRINCIPALES
+     ---------------------------------------------------------- */
 
   const [equipements, setEquipements] = useState<Equipement[]>([]);
-  const [epis, setEpis] = useState<SimpleRef[]>([]);
-  const [epcs, setEpcs] = useState<SimpleRef[]>([]);
-  const [risques, setRisques] = useState<SimpleRef[]>([]);
-  const [outillages, setOutillages] = useState<SimpleRef[]>([]);
+  const [epis, setEpis] = useState<SimpleItem[]>([]);
+  const [epcs, setEpcs] = useState<SimpleItem[]>([]);
+  const [risques, setRisques] = useState<SimpleItem[]>([]);
+  const [outillages, setOutillages] = useState<SimpleItem[]>([]);
   const [pieces, setPieces] = useState<Piece[]>([]);
 
-  const [maintenanceTypes, setMaintenanceTypes] =
-    useState<RefValue[]>(fallbackMaintenance);
+
+  /* ----------------------------------------------------------
+     RÉFÉRENTIELS
+     ---------------------------------------------------------- */
+
+  const [typesMaintenance, setTypesMaintenance] =
+    useState<Referentiel[]>(FALLBACK_TYPE_MAINTENANCE);
 
   const [periodicites, setPeriodicites] =
-    useState<RefValue[]>(fallbackPeriodicites);
+    useState<Referentiel[]>(FALLBACK_PERIODICITE);
 
   const [typesArret, setTypesArret] =
-    useState<RefValue[]>(fallbackArrets);
+    useState<Referentiel[]>(FALLBACK_TYPE_ARRET);
 
   const [corpsMetiers, setCorpsMetiers] =
-    useState<RefValue[]>([]);
+    useState<Referentiel[]>(FALLBACK_CORPS_METIER);
 
   const [typesRedaction, setTypesRedaction] =
-    useState<RefValue[]>([]);
+    useState<Referentiel[]>(FALLBACK_TYPE_REDACTION);
+
+
+  /* ----------------------------------------------------------
+     INFORMATIONS GÉNÉRALES
+     ---------------------------------------------------------- */
+
+  const [code, setCode] = useState<string>("");
+  const [abreviation, setAbreviation] = useState<string>("");
+  const [designation, setDesignation] = useState<string>("");
+
+  const [corpsMetier, setCorpsMetier] = useState<string>("");
+  const [typeRedaction, setTypeRedaction] = useState<string>("");
+
+  const [equipementId, setEquipementId] = useState<string>("");
+
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+
+  /* ----------------------------------------------------------
+     MAINTENANCE
+     ---------------------------------------------------------- */
+
+  const [typeMaintenance, setTypeMaintenance] = useState<string>("");
+  const [periodicite, setPeriodicite] = useState<string>("");
+  const [mainOeuvre, setMainOeuvre] = useState<number>(1);
+  const [typeArret, setTypeArret] = useState<string>("aucun");
+
+
+  /* ----------------------------------------------------------
+     SÉCURITÉ
+     ---------------------------------------------------------- */
 
   const [selectedEpis, setSelectedEpis] = useState<string[]>([]);
   const [selectedEpcs, setSelectedEpcs] = useState<string[]>([]);
   const [selectedRisques, setSelectedRisques] = useState<string[]>([]);
-  const [selectedOutillages, setSelectedOutillages] =
-    useState<Record<string, number>>({});
-  const [selectedPieces, setSelectedPieces] =
-    useState<Record<string, number>>({});
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+
+  /* ----------------------------------------------------------
+     MOYENS
+     ---------------------------------------------------------- */
+
+  const [selectedOutillages, setSelectedOutillages] =
+    useState<string[]>([]);
+
+  const [selectedPieces, setSelectedPieces] =
+    useState<string[]>([]);
+
+  const [outillageQuantities, setOutillageQuantities] =
+    useState<QuantityMap>({});
+
+  const [pieceQuantities, setPieceQuantities] =
+    useState<QuantityMap>({});
+
+
+  /* ============================================================
+     ÉQUIPEMENT SÉLECTIONNÉ
+     ============================================================ */
+
+  const selectedEquipement = useMemo(() => {
+    return (
+      equipements.find(
+        (equipement) => equipement.id === equipementId,
+      ) ?? null
+    );
+  }, [equipements, equipementId]);
+
+
+  /* ============================================================
+     CHARGEMENT DES DONNÉES
+     ============================================================ */
 
   useEffect(() => {
-    const loadReferences = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const [
-          equipementsResponse,
-          episResponse,
-          risquesResponse,
-          outillagesResponse,
-          piecesResponse,
-        ] = await Promise.all([
-          api.get<Equipement[] | PaginatedResponse<Equipement>>(
-            "/equipements/",
-          ),
-          api.get<SimpleRef[] | PaginatedResponse<SimpleRef>>(
-            "/epis/",
-          ),
-          api.get<SimpleRef[] | PaginatedResponse<SimpleRef>>(
-            "/risques/",
-          ),
-          api.get<SimpleRef[] | PaginatedResponse<SimpleRef>>(
-            "/outillages/",
-          ),
-          api.get<Piece[] | PaginatedResponse<Piece>>(
-            "/pieces/",
-          ),
-        ]);
-
-        setEquipements(
-          extractResults<Equipement>(equipementsResponse.data).filter(
-            (item) => item.actif !== false,
-          ),
-        );
-
-        setEpis(extractResults<SimpleRef>(episResponse.data));
-        setRisques(extractResults<SimpleRef>(risquesResponse.data));
-        setOutillages(extractResults<SimpleRef>(outillagesResponse.data));
-        setPieces(extractResults<Piece>(piecesResponse.data));
-
-        const optionalResponses = await Promise.allSettled([
-          api.get<SimpleRef[]>("/v2/epcs/"),
-          api.get<RefValue[]>(
-            "/v2/referentiels/?categorie=type_maintenance",
-          ),
-          api.get<RefValue[]>(
-            "/v2/referentiels/?categorie=periodicite",
-          ),
-          api.get<RefValue[]>(
-            "/v2/referentiels/?categorie=type_arret",
-          ),
-          api.get<RefValue[]>(
-            "/v2/referentiels/?categorie=corps_metier",
-          ),
-          api.get<RefValue[]>(
-            "/v2/referentiels/?categorie=type_redaction",
-          ),
-        ]);
-
-        if (optionalResponses[0].status === "fulfilled") {
-          setEpcs(optionalResponses[0].value.data);
-        }
-
-        if (optionalResponses[1].status === "fulfilled") {
-          setMaintenanceTypes(
-            normalizeReferenceValues(
-              optionalResponses[1].value.data,
-              fallbackMaintenance,
-            ),
-          );
-        }
-
-        if (optionalResponses[2].status === "fulfilled") {
-          const values = normalizeReferenceValues(
-            optionalResponses[2].value.data,
-            fallbackPeriodicites,
-          );
-
-          setPeriodicites(
-            values.map((item) => ({
-              ...item,
-              code: item.libelle,
-            })),
-          );
-        }
-
-        if (optionalResponses[3].status === "fulfilled") {
-          setTypesArret(
-            normalizeReferenceValues(
-              optionalResponses[3].value.data,
-              fallbackArrets,
-            ),
-          );
-        }
-
-        if (optionalResponses[4].status === "fulfilled") {
-          setCorpsMetiers(
-            normalizeReferenceValues(
-              optionalResponses[4].value.data,
-              [],
-            ),
-          );
-        }
-
-        if (optionalResponses[5].status === "fulfilled") {
-          setTypesRedaction(
-            normalizeReferenceValues(
-              optionalResponses[5].value.data,
-              [],
-            ),
-          );
-        }
-      } catch (err) {
-        console.error(err);
-        setError(
-          "Impossible de charger les référentiels nécessaires.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadReferences();
+    void loadData();
   }, []);
 
-  const selectedEquipment = useMemo(
-    () =>
-      equipements.find(
-        (item) => item.id === form.equipement,
-      ) ?? null,
-    [equipements, form.equipement],
-  );
 
-  const updateForm = <K extends keyof FormState>(
-    key: K,
-    value: FormState[K],
-  ) => {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  };
+  async function loadReferentiel(
+    categorie: string,
+    fallback: Referentiel[],
+  ): Promise<Referentiel[]> {
+    try {
+      const response = await api.get<ApiList<Referentiel>>(
+        `/v2/referentiels/?categorie=${categorie}`,
+      );
 
-  const toggleId = (
-    id: string,
-    setter: Dispatch<
-      SetStateAction<string[]>
-    >,
-  ) => {
-    setter((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
-    );
-  };
+      const values = extractResults(response.data).filter(
+        (item) => item.actif !== false,
+      );
 
-  const toggleQuantity = (
-    id: string,
-    setter: Dispatch<
-      SetStateAction<Record<string, number>>
-    >,
-  ) => {
-    setter((current) => {
-      if (current[id]) {
-        const next = { ...current };
-        delete next[id];
-        return next;
+      if (values.length === 0) {
+        return fallback;
       }
 
-      return {
-        ...current,
-        [id]: 1,
-      };
-    });
-  };
+      return values.sort(
+        (a, b) => (a.ordre ?? 0) - (b.ordre ?? 0),
+      );
+    } catch {
+      return fallback;
+    }
+  }
 
-  const updateQuantity = (
-    id: string,
-    quantity: number,
-    setter: Dispatch<
-      SetStateAction<Record<string, number>>
-    >,
-  ) => {
-    setter((current) => ({
-      ...current,
-      [id]: Math.max(1, Number(quantity) || 1),
-    }));
-  };
 
-  const handleImageChange = (file: File | null) => {
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [
+        equipementResponse,
+        epiResponse,
+        risqueResponse,
+        outillageResponse,
+        pieceResponse,
+      ] = await Promise.all([
+        api.get<ApiList<Equipement>>("/equipements/"),
+        api.get<ApiList<SimpleItem>>("/epis/"),
+        api.get<ApiList<SimpleItem>>("/risques/"),
+        api.get<ApiList<SimpleItem>>("/outillages/"),
+        api.get<ApiList<Piece>>("/pieces/"),
+      ]);
+
+      setEquipements(extractResults(equipementResponse.data));
+      setEpis(extractResults(epiResponse.data));
+      setRisques(extractResults(risqueResponse.data));
+      setOutillages(extractResults(outillageResponse.data));
+      setPieces(extractResults(pieceResponse.data));
+
+
+      try {
+        const epcResponse =
+          await api.get<ApiList<SimpleItem>>("/v2/epcs/");
+
+        setEpcs(extractResults(epcResponse.data));
+      } catch {
+        setEpcs([]);
+      }
+
+
+      const [
+        maintenanceValues,
+        periodiciteValues,
+        arretValues,
+        metierValues,
+        redactionValues,
+      ] = await Promise.all([
+        loadReferentiel(
+          "type_maintenance",
+          FALLBACK_TYPE_MAINTENANCE,
+        ),
+
+        loadReferentiel(
+          "periodicite",
+          FALLBACK_PERIODICITE,
+        ),
+
+        loadReferentiel(
+          "type_arret",
+          FALLBACK_TYPE_ARRET,
+        ),
+
+        loadReferentiel(
+          "corps_metier",
+          FALLBACK_CORPS_METIER,
+        ),
+
+        loadReferentiel(
+          "type_redaction",
+          FALLBACK_TYPE_REDACTION,
+        ),
+      ]);
+
+      setTypesMaintenance(maintenanceValues);
+      setPeriodicites(periodiciteValues);
+      setTypesArret(arretValues);
+      setCorpsMetiers(metierValues);
+      setTypesRedaction(redactionValues);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        "Impossible de charger les données nécessaires à la création de la gamme.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
+  /* ============================================================
+     IMAGE
+     ============================================================ */
+
+  function handleImageChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
     if (!file) {
       return;
     }
@@ -386,106 +591,209 @@ export default function GammeCreate() {
       return;
     }
 
-    if (file.size > 3 * 1024 * 1024) {
-      setError("L'image ne doit pas dépasser 3 Mo.");
+    const maxSize = 3 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setError(
+        "L'image est trop volumineuse. Taille maximale autorisée : 3 Mo.",
+      );
       return;
     }
 
     const reader = new FileReader();
+
     reader.onload = () => {
-      updateForm("image_url", String(reader.result ?? ""));
-      setError("");
+      if (typeof reader.result === "string") {
+        setImageUrl(reader.result);
+        setError("");
+      }
     };
+
+    reader.onerror = () => {
+      setError("Impossible de lire l'image sélectionnée.");
+    };
+
     reader.readAsDataURL(file);
-  };
+  }
 
-  const validateCurrentStep = () => {
-    setError("");
 
-    if (
-      currentStep === 0 &&
-      (
-        !form.code.trim() ||
-        !form.designation.trim() ||
-        !form.equipement ||
-        !form.corps_metier ||
-        !form.type_redaction
-      )
-    ) {
-      setError(
-        "Le code, l'intitulé, le corps de métier, le type de rédaction et l'équipement sont obligatoires.",
-      );
-      return false;
+  function removeImage() {
+    setImageUrl("");
+  }
+
+
+  /* ============================================================
+     SÉLECTIONS
+     ============================================================ */
+
+  function toggleSelection(
+    id: string,
+    values: string[],
+    setter: (values: string[]) => void,
+  ) {
+    if (values.includes(id)) {
+      setter(values.filter((value) => value !== id));
+      return;
     }
 
-    if (
-      currentStep === 1 &&
-      (
-        !form.type_maintenance ||
-        !form.periodicite ||
-        form.main_oeuvre < 1 ||
-        !form.type_arret
-      )
-    ) {
-      setError(
-        "Renseignez le type de maintenance, la périodicité, la main-d'œuvre et le type d'arrêt.",
+    setter([...values, id]);
+  }
+
+
+  function toggleOutillage(id: string) {
+    if (selectedOutillages.includes(id)) {
+      setSelectedOutillages(
+        selectedOutillages.filter((value) => value !== id),
       );
-      return false;
+
+      setOutillageQuantities((current) => {
+        const copy = { ...current };
+        delete copy[id];
+        return copy;
+      });
+
+      return;
+    }
+
+    setSelectedOutillages([...selectedOutillages, id]);
+
+    setOutillageQuantities((current) => ({
+      ...current,
+      [id]: 1,
+    }));
+  }
+
+
+  function togglePiece(id: string) {
+    if (selectedPieces.includes(id)) {
+      setSelectedPieces(
+        selectedPieces.filter((value) => value !== id),
+      );
+
+      setPieceQuantities((current) => {
+        const copy = { ...current };
+        delete copy[id];
+        return copy;
+      });
+
+      return;
+    }
+
+    setSelectedPieces([...selectedPieces, id]);
+
+    setPieceQuantities((current) => ({
+      ...current,
+      [id]: 1,
+    }));
+  }
+
+
+  /* ============================================================
+     VALIDATION DES ÉTAPES
+     ============================================================ */
+
+  function validateStep(step: number): boolean {
+    setError("");
+
+    if (step === 1) {
+      if (!code.trim()) {
+        setError("Le code gamme est obligatoire.");
+        return false;
+      }
+
+      if (!designation.trim()) {
+        setError("L'intitulé de l'opération est obligatoire.");
+        return false;
+      }
+
+      if (!corpsMetier) {
+        setError("Sélectionnez un corps de métier.");
+        return false;
+      }
+
+      if (!typeRedaction) {
+        setError("Sélectionnez un type de rédaction.");
+        return false;
+      }
+
+      if (!equipementId) {
+        setError("Sélectionnez un équipement.");
+        return false;
+      }
+    }
+
+
+    if (step === 2) {
+      if (!typeMaintenance) {
+        setError("Sélectionnez un type de maintenance.");
+        return false;
+      }
+
+      if (!periodicite) {
+        setError("Sélectionnez une périodicité.");
+        return false;
+      }
+
+      if (!typeArret) {
+        setError("Sélectionnez un type d'arrêt.");
+        return false;
+      }
+
+      if (!mainOeuvre || mainOeuvre < 1) {
+        setError(
+          "La main-d'œuvre doit être supérieure ou égale à 1.",
+        );
+        return false;
+      }
     }
 
     return true;
-  };
+  }
 
-  const next = () => {
-    if (!validateCurrentStep()) {
+
+  function nextStep() {
+    if (!validateStep(currentStep)) {
       return;
     }
 
-    setCurrentStep((step) =>
-      Math.min(step + 1, wizardSteps.length - 1),
-    );
+    if (currentStep < WIZARD_STEPS.length) {
+      setCurrentStep((current) => current + 1);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  }
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
 
-  const previous = () => {
+  function previousStep() {
     setError("");
 
-    setCurrentStep((step) =>
-      Math.max(step - 1, 0),
-    );
+    if (currentStep > 1) {
+      setCurrentStep((current) => current - 1);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  const save = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-
-    if (
-      currentStep !== wizardSteps.length - 1
-    ) {
-      next();
-      return;
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
     }
+  }
 
-    if (
-      !form.code.trim() ||
-      !form.designation.trim() ||
-      !form.equipement ||
-      !form.corps_metier ||
-      !form.type_redaction
-    ) {
-      setError(
-        "Le code, l'intitulé, le corps de métier, le type de rédaction et l'équipement sont obligatoires.",
-      );
+
+  function goToCompletedStep(step: number) {
+    if (step < currentStep) {
+      setCurrentStep(step);
+      setError("");
+    }
+  }
+
+
+  /* ============================================================
+     CRÉATION
+     ============================================================ */
+
+  async function handleCreate() {
+    if (!validateStep(1) || !validateStep(2)) {
       return;
     }
 
@@ -493,255 +801,300 @@ export default function GammeCreate() {
     setError("");
 
     try {
-      const gammeResponse = await api.post(
+      /* --------------------------------------------------------
+         1. CRÉATION DE LA GAMME
+         -------------------------------------------------------- */
+
+      const gammeResponse = await api.post<Gamme>(
         "/gammes/",
         {
-          code: form.code.trim(),
-          designation: form.designation.trim(),
-          abreviation:
-            form.abreviation.trim() || null,
-          equipement: form.equipement,
-          description: null,
+          code: code.trim(),
+          designation: designation.trim(),
+          abreviation: abreviation.trim(),
+          equipement: equipementId,
+          description: "",
           actif: true,
         },
       );
 
-      const gammeId = String(
-        gammeResponse.data.id,
-      );
+      const gamme = gammeResponse.data;
+
+
+      /* --------------------------------------------------------
+         2. MÉTADONNÉES V2 DE LA GAMME
+         -------------------------------------------------------- */
 
       await api.patch(
-        `/v2/gammes/${gammeId}/metadata/`,
+        `/v2/gammes/${gamme.id}/metadata/`,
         {
-          corps_metier: form.corps_metier,
-          type_redaction: form.type_redaction,
-          image_url: form.image_url || null,
+          corps_metier: corpsMetier,
+          type_redaction: typeRedaction,
+          image_url: imageUrl || null,
         },
       );
 
-      const versionsResponse = await api.get<
-        GammeVersion[] |
-        PaginatedResponse<GammeVersion>
-      >(
-        `/gammes/${gammeId}/versions/`,
-      );
 
-      const version = extractResults<GammeVersion>(
-        versionsResponse.data,
-      )
-        .slice()
-        .sort(
-          (a, b) =>
-            Number(b.numero_version ?? 0) -
-            Number(a.numero_version ?? 0),
-        )[0];
+      /* --------------------------------------------------------
+         3. RÉCUPÉRATION DE V0
+         -------------------------------------------------------- */
 
-      if (!version) {
+      const versionsResponse =
+        await api.get<ApiList<GammeVersion>>(
+          `/gammes/${gamme.id}/versions/`,
+        );
+
+      const versions = extractResults(versionsResponse.data);
+
+      if (versions.length === 0) {
         throw new Error(
-          "La version V0 n'a pas été créée.",
+          "La gamme a été créée mais aucune version V0 n'a été trouvée.",
         );
       }
+
+      const version =
+        versions.find(
+          (item) =>
+            item.numero_version === 0 ||
+            item.code_version === "V0",
+        ) ?? versions[0];
+
+
+      /* --------------------------------------------------------
+         4. INFORMATIONS DE MAINTENANCE
+         -------------------------------------------------------- */
 
       await api.patch(
         `/versions/${version.id}/`,
         {
-          type_maintenance:
-            form.type_maintenance,
-          periodicite:
-            form.periodicite,
-          main_oeuvre:
-            form.main_oeuvre,
-          modifications:
-            form.modifications.trim(),
-          arret:
-            form.type_arret !== "aucun",
+          type_maintenance: typeMaintenance,
+          periodicite,
+          main_oeuvre: mainOeuvre,
         },
       );
 
+
+      await api.patch(
+        `/v2/versions/${version.id}/metadata/`,
+        {
+          type_arret: typeArret,
+        },
+      );
+
+
+      /* --------------------------------------------------------
+         5. EPI
+         -------------------------------------------------------- */
+
+      await Promise.all(
+        selectedEpis.map((epiId) =>
+          api.post("/version-epis/", {
+            version: version.id,
+            epi: epiId,
+          }),
+        ),
+      );
+
+
+      /* --------------------------------------------------------
+         6. EPC
+         -------------------------------------------------------- */
+
+      await Promise.all(
+        selectedEpcs.map((epcId) =>
+          api.post("/v2/version-epcs/", {
+            version_id: version.id,
+            epc_id: epcId,
+          }),
+        ),
+      );
+
+
+      /* --------------------------------------------------------
+         7. RISQUES
+         -------------------------------------------------------- */
+
+      await Promise.all(
+        selectedRisques.map((risqueId) =>
+          api.post("/version-risques/", {
+            version: version.id,
+            risque: risqueId,
+          }),
+        ),
+      );
+
+
+      /* --------------------------------------------------------
+         8. OUTILLAGES
+         -------------------------------------------------------- */
+
+      await Promise.all(
+        selectedOutillages.map((outillageId) =>
+          api.post("/version-outillages/", {
+            version: version.id,
+            outillage: outillageId,
+            quantite:
+              outillageQuantities[outillageId] ?? 1,
+          }),
+        ),
+      );
+
+
+      /* --------------------------------------------------------
+         9. PIÈCES
+         -------------------------------------------------------- */
+
+      await Promise.all(
+        selectedPieces.map((pieceId) =>
+          api.post("/version-pieces/", {
+            version: version.id,
+            piece: pieceId,
+            quantite:
+              pieceQuantities[pieceId] ?? 1,
+          }),
+        ),
+      );
+
+
+      /* --------------------------------------------------------
+         10. RECALCUL DURÉE
+         -------------------------------------------------------- */
+
       try {
-        await api.patch(
-          `/v2/versions/${version.id}/metadata/`,
-          {
-            type_arret:
-              form.type_arret,
-          },
+        await api.post(
+          `/versions/${version.id}/recalculate/`,
         );
-      } catch (metadataError) {
-        console.warn(
-          "Métadonnées V2 non disponibles.",
-          metadataError,
-        );
+      } catch {
+        // La gamme est quand même créée.
       }
 
-      await Promise.all(
-        selectedEpis.map((epi) =>
-          api.post(
-            "/version-epis/",
-            {
-              version: version.id,
-              epi,
-            },
-          ),
-        ),
-      );
 
-      await Promise.all(
-        selectedRisques.map((risque) =>
-          api.post(
-            "/version-risques/",
-            {
-              version: version.id,
-              risque,
-            },
-          ),
-        ),
-      );
+      /* --------------------------------------------------------
+         11. REDIRECTION
+         -------------------------------------------------------- */
 
-      await Promise.all(
-        Object.entries(
-          selectedOutillages,
-        ).map(
-          ([outillage, quantite]) =>
-            api.post(
-              "/version-outillages/",
-              {
-                version: version.id,
-                outillage,
-                quantite,
-              },
-            ),
-        ),
-      );
-
-      await Promise.all(
-        Object.entries(
-          selectedPieces,
-        ).map(
-          ([piece, quantite]) =>
-            api.post(
-              "/version-pieces/",
-              {
-                version: version.id,
-                piece,
-                quantite,
-              },
-            ),
-        ),
-      );
-
-      if (selectedEpcs.length > 0) {
-        try {
-          await Promise.all(
-            selectedEpcs.map((epc) =>
-              api.post(
-                "/v2/version-epcs/",
-                {
-                  version: version.id,
-                  epc,
-                },
-              ),
-            ),
-          );
-        } catch (epcError) {
-          console.warn(
-            "Association EPC non disponible.",
-            epcError,
-          );
-        }
-      }
-
-      navigate(
-        `/gammes/${gammeId}`,
-      );
-    } catch (err: any) {
+      navigate(`/gammes/${gamme.id}`);
+    } catch (err) {
       console.error(err);
 
-      const detail =
-        err?.response?.data?.detail ||
-        err?.response?.data?.code?.[0] ||
-        err?.message;
-
       setError(
-        typeof detail === "string"
-          ? detail
-          : "Impossible de créer la gamme.",
+        `Création impossible : ${getErrorMessage(err)}`,
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
+
+
+  /* ============================================================
+     LOADING
+     ============================================================ */
 
   if (loading) {
     return (
-      <div className="page-loading">
-        <LoaderCircle
-          className="spin"
-          size={28}
-        />
-        <span>
-          Chargement des référentiels...
-        </span>
+      <div className="gamme-create-page">
+        <div className="page-loading">
+          <Loader2
+            size={22}
+            className="spin"
+          />
+
+          <span>
+            Chargement du formulaire...
+          </span>
+        </div>
       </div>
     );
   }
 
+
+  /* ============================================================
+     RENDER
+     ============================================================ */
+
   return (
-    <form
-      className="gamme-create-page"
-      onSubmit={save}
-    >
-      <div className="page-header">
+    <div className="gamme-create-page">
+
+      {/* ======================================================
+          HEADER
+          ====================================================== */}
+
+      <header className="page-header">
         <div>
-          <p className="page-kicker">
+          <span className="page-kicker">
             Gammes opératoires
-          </p>
+          </span>
 
           <h1>
-            Créer une gamme
+            Nouvelle gamme
           </h1>
 
           <p>
-            Création d'une nouvelle gamme
-            avec référentiels Supabase.
+            Créez une gamme opératoire de maintenance
+            à partir du Wizard.
           </p>
         </div>
-      </div>
+      </header>
 
-      <div className="wizard-progress">
-        {wizardSteps.map(
-          (label, index) => (
+
+      {/* ======================================================
+          WIZARD PROGRESS
+          ====================================================== */}
+
+      <nav
+        className="wizard-progress"
+        aria-label="Progression de création"
+      >
+        {WIZARD_STEPS.map((wizardStep) => {
+          const isActive =
+            currentStep === wizardStep.id;
+
+          const isDone =
+            currentStep > wizardStep.id;
+
+          return (
             <button
-              key={label}
+              key={wizardStep.id}
               type="button"
-              className={
-                index === currentStep
-                  ? "wizard-step active"
-                  : index < currentStep
-                    ? "wizard-step done"
-                    : "wizard-step"
+              className={[
+                "wizard-step",
+                isActive ? "active" : "",
+                isDone ? "done" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() =>
+                goToCompletedStep(wizardStep.id)
               }
-              onClick={() => {
-                if (
-                  index <= currentStep
-                ) {
-                  setCurrentStep(index);
-                  setError("");
-                }
-              }}
+              disabled={
+                !isDone && !isActive
+              }
             >
-              <span>
-                {index < currentStep ? (
+              <span className="wizard-step-number">
+                {isDone ? (
                   <Check size={15} />
                 ) : (
-                  index + 1
+                  wizardStep.id
                 )}
               </span>
 
-              {label}
+              <span className="wizard-step-content">
+                <strong>
+                  {wizardStep.label}
+                </strong>
+
+                <small>
+                  Étape {wizardStep.id}
+                </small>
+              </span>
             </button>
-          ),
-        )}
-      </div>
+          );
+        })}
+      </nav>
+
+
+      {/* ======================================================
+          ERROR
+          ====================================================== */}
 
       {error && (
         <div className="form-error">
@@ -749,8 +1102,18 @@ export default function GammeCreate() {
         </div>
       )}
 
-      <section className="wizard-card">
-        {currentStep === 0 && (
+
+      {/* ======================================================
+          CARD
+          ====================================================== */}
+
+      <main className="wizard-card">
+
+        {/* ====================================================
+            ÉTAPE 1
+            ==================================================== */}
+
+        {currentStep === 1 && (
           <>
             <div className="section-heading">
               <h2>
@@ -758,29 +1121,29 @@ export default function GammeCreate() {
               </h2>
 
               <p>
-                Identifiez la gamme et
+                Identifiez la gamme, le corps de métier et
                 l'équipement concerné.
               </p>
             </div>
 
+
             <div className="form-grid">
+
               <label>
                 <span>
                   Code gamme *
                 </span>
 
                 <input
-                  value={form.code}
+                  type="text"
+                  value={code}
                   onChange={(event) =>
-                    updateForm(
-                      "code",
-                      event.target.value
-                        .toUpperCase(),
-                    )
+                    setCode(event.target.value)
                   }
-                  placeholder="Ex. GAM-001"
+                  placeholder="Ex. HP_TRI_FIV_001"
                 />
               </label>
+
 
               <label>
                 <span>
@@ -788,19 +1151,17 @@ export default function GammeCreate() {
                 </span>
 
                 <input
-                  value={
-                    form.abreviation
-                  }
+                  type="text"
+                  value={abreviation}
                   onChange={(event) =>
-                    updateForm(
-                      "abreviation",
-                      event.target.value
-                        .toUpperCase(),
+                    setAbreviation(
+                      event.target.value,
                     )
                   }
-                  placeholder="Ex. MP-CONV"
+                  placeholder="Ex. CONTROLE CONV"
                 />
               </label>
+
 
               <label className="form-span-2">
                 <span>
@@ -808,18 +1169,75 @@ export default function GammeCreate() {
                 </span>
 
                 <input
-                  value={
-                    form.designation
-                  }
+                  type="text"
+                  value={designation}
                   onChange={(event) =>
-                    updateForm(
-                      "designation",
+                    setDesignation(
                       event.target.value,
                     )
                   }
-                  placeholder="Ex. Contrôle mensuel du convoyeur"
+                  placeholder="Ex. Contrôle préventif du convoyeur principal"
                 />
               </label>
+
+
+              <label>
+                <span>
+                  Corps de métier *
+                </span>
+
+                <select
+                  value={corpsMetier}
+                  onChange={(event) =>
+                    setCorpsMetier(
+                      event.target.value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Sélectionner
+                  </option>
+
+                  {corpsMetiers.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.code}
+                    >
+                      {item.libelle}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+
+              <label>
+                <span>
+                  Type de rédaction *
+                </span>
+
+                <select
+                  value={typeRedaction}
+                  onChange={(event) =>
+                    setTypeRedaction(
+                      event.target.value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Sélectionner
+                  </option>
+
+                  {typesRedaction.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.code}
+                    >
+                      {item.libelle}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
 
               <label className="form-span-2">
                 <span>
@@ -827,12 +1245,9 @@ export default function GammeCreate() {
                 </span>
 
                 <select
-                  value={
-                    form.equipement
-                  }
+                  value={equipementId}
                   onChange={(event) =>
-                    updateForm(
-                      "equipement",
+                    setEquipementId(
                       event.target.value,
                     )
                   }
@@ -844,12 +1259,8 @@ export default function GammeCreate() {
                   {equipements.map(
                     (equipement) => (
                       <option
-                        key={
-                          equipement.id
-                        }
-                        value={
-                          equipement.id
-                        }
+                        key={equipement.id}
+                        value={equipement.id}
                       >
                         {equipement.code
                           ? `${equipement.code} — `
@@ -861,25 +1272,28 @@ export default function GammeCreate() {
                 </select>
               </label>
 
-              {selectedEquipment && (
+
+              {selectedEquipement && (
                 <div className="equipment-summary form-span-2">
                   <div>
                     <span>
                       Constructeur
                     </span>
+
                     <strong>
-                      {selectedEquipment.constructeur ||
-                        "—"}
+                      {selectedEquipement.constructeur ||
+                        "Non renseigné"}
                     </strong>
                   </div>
 
                   <div>
                     <span>
-                      Référence machine
+                      Référence
                     </span>
+
                     <strong>
-                      {selectedEquipment.reference ||
-                        "—"}
+                      {selectedEquipement.reference ||
+                        "Non renseignée"}
                     </strong>
                   </div>
 
@@ -887,109 +1301,98 @@ export default function GammeCreate() {
                     <span>
                       Type machine
                     </span>
+
                     <strong>
-                      {selectedEquipment.type ||
-                        "—"}
+                      {selectedEquipement.type ||
+                        "Non renseigné"}
                     </strong>
                   </div>
                 </div>
               )}
 
-              <label>
-                <span>
-                  Corps de métier *
-                </span>
 
-                <select
-                  value={form.corps_metier}
-                  onChange={(event) =>
-                    updateForm(
-                      "corps_metier",
-                      event.target.value,
-                    )
-                  }
-                >
-                  <option value="">
-                    Sélectionner un corps de métier
-                  </option>
-                  {corpsMetiers.map((item) => (
-                    <option key={item.code} value={item.code}>
-                      {item.libelle}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* IMAGE À LA PLACE DE DESCRIPTION */}
 
-              <label>
-                <span>
-                  Type de rédaction *
-                </span>
+              <div className="gamme-image-field form-span-2">
 
-                <select
-                  value={form.type_redaction}
-                  onChange={(event) =>
-                    updateForm(
-                      "type_redaction",
-                      event.target.value,
-                    )
-                  }
-                >
-                  <option value="">
-                    Sélectionner un type de rédaction
-                  </option>
-                  {typesRedaction.map((item) => (
-                    <option key={item.code} value={item.code}>
-                      {item.libelle}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="field-label">
+                  Image de la gamme
+                </div>
 
-              <div className="form-span-2 gamme-image-field">
-                <span className="field-label">Image de la gamme</span>
 
-                {form.image_url ? (
-                  <div className="gamme-image-preview">
-                    <img src={form.image_url} alt="Aperçu de la gamme" />
-                    <div className="gamme-image-buttons">
-                      <label className="image-button">
-                        Remplacer
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) =>
-                            handleImageChange(event.target.files?.[0] ?? null)
-                          }
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="image-button danger"
-                        onClick={() => updateForm("image_url", "")}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </div>
-                ) : (
+                {!imageUrl ? (
                   <label className="gamme-image-dropzone">
-                    <strong>Ajouter une image</strong>
-                    <span>PNG, JPG ou WEBP — maximum 3 Mo</span>
+                    <ImagePlus size={36} />
+
+                    <strong>
+                      Ajouter une image
+                    </strong>
+
+                    <span>
+                      Cliquez pour sélectionner une photo
+                      de l'équipement ou de l'opération.
+                      PNG, JPG ou WEBP — maximum 3 Mo.
+                    </span>
+
                     <input
                       type="file"
-                      accept="image/*"
-                      onChange={(event) =>
-                        handleImageChange(event.target.files?.[0] ?? null)
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={
+                        handleImageChange
                       }
                     />
                   </label>
+                ) : (
+                  <div className="gamme-image-preview">
+
+                    <img
+                      src={imageUrl}
+                      alt="Aperçu de la gamme"
+                    />
+
+
+                    <div className="gamme-image-buttons">
+
+                      <label className="image-button">
+                        <Upload size={16} />
+
+                        Remplacer
+
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={
+                            handleImageChange
+                          }
+                        />
+                      </label>
+
+
+                      <button
+                        type="button"
+                        className="image-button danger"
+                        onClick={removeImage}
+                      >
+                        <Trash2 size={16} />
+
+                        Supprimer
+                      </button>
+
+                    </div>
+                  </div>
                 )}
               </div>
+
             </div>
           </>
         )}
 
-        {currentStep === 1 && (
+
+        {/* ====================================================
+            ÉTAPE 2
+            ==================================================== */}
+
+        {currentStep === 2 && (
           <>
             <div className="section-heading">
               <h2>
@@ -997,44 +1400,42 @@ export default function GammeCreate() {
               </h2>
 
               <p>
-                Les valeurs des listes
-                proviennent des référentiels.
+                Définissez la maintenance, la périodicité
+                et les contraintes d'arrêt.
               </p>
             </div>
 
+
             <div className="form-grid">
+
               <label>
                 <span>
                   Type de maintenance *
                 </span>
 
                 <select
-                  value={
-                    form.type_maintenance
-                  }
+                  value={typeMaintenance}
                   onChange={(event) =>
-                    updateForm(
-                      "type_maintenance",
+                    setTypeMaintenance(
                       event.target.value,
                     )
                   }
                 >
-                  {maintenanceTypes.map(
-                    (item) => (
-                      <option
-                        key={
-                          item.code
-                        }
-                        value={
-                          item.code
-                        }
-                      >
-                        {item.libelle}
-                      </option>
-                    ),
-                  )}
+                  <option value="">
+                    Sélectionner
+                  </option>
+
+                  {typesMaintenance.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.code}
+                    >
+                      {item.libelle}
+                    </option>
+                  ))}
                 </select>
               </label>
+
 
               <label>
                 <span>
@@ -1042,32 +1443,28 @@ export default function GammeCreate() {
                 </span>
 
                 <select
-                  value={
-                    form.periodicite
-                  }
+                  value={periodicite}
                   onChange={(event) =>
-                    updateForm(
-                      "periodicite",
+                    setPeriodicite(
                       event.target.value,
                     )
                   }
                 >
-                  {periodicites.map(
-                    (item) => (
-                      <option
-                        key={
-                          item.code
-                        }
-                        value={
-                          item.code
-                        }
-                      >
-                        {item.libelle}
-                      </option>
-                    ),
-                  )}
+                  <option value="">
+                    Sélectionner
+                  </option>
+
+                  {periodicites.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.code}
+                    >
+                      {item.libelle}
+                    </option>
+                  ))}
                 </select>
               </label>
+
 
               <label>
                 <span>
@@ -1077,12 +1474,9 @@ export default function GammeCreate() {
                 <input
                   type="number"
                   min={1}
-                  value={
-                    form.main_oeuvre
-                  }
+                  value={mainOeuvre}
                   onChange={(event) =>
-                    updateForm(
-                      "main_oeuvre",
+                    setMainOeuvre(
                       Math.max(
                         1,
                         Number(
@@ -1094,62 +1488,45 @@ export default function GammeCreate() {
                 />
               </label>
 
+
               <label>
                 <span>
                   Type d'arrêt *
                 </span>
 
                 <select
-                  value={
-                    form.type_arret
-                  }
+                  value={typeArret}
                   onChange={(event) =>
-                    updateForm(
-                      "type_arret",
+                    setTypeArret(
                       event.target.value,
                     )
                   }
                 >
-                  {typesArret.map(
-                    (item) => (
-                      <option
-                        key={
-                          item.code
-                        }
-                        value={
-                          item.code
-                        }
-                      >
-                        {item.libelle}
-                      </option>
-                    ),
-                  )}
+                  <option value="">
+                    Sélectionner
+                  </option>
+
+                  {typesArret.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.code}
+                    >
+                      {item.libelle}
+                    </option>
+                  ))}
                 </select>
               </label>
 
-              <label className="form-span-2">
-                <span>
-                  Modifications
-                </span>
-
-                <textarea
-                  value={
-                    form.modifications
-                  }
-                  onChange={(event) =>
-                    updateForm(
-                      "modifications",
-                      event.target.value,
-                    )
-                  }
-                  rows={3}
-                />
-              </label>
             </div>
           </>
         )}
 
-        {currentStep === 2 && (
+
+        {/* ====================================================
+            ÉTAPE 3
+            ==================================================== */}
+
+        {currentStep === 3 && (
           <>
             <div className="section-heading">
               <h2>
@@ -1157,13 +1534,17 @@ export default function GammeCreate() {
               </h2>
 
               <p>
-                Sélectionnez les EPI, EPC
-                et risques applicables.
+                Sélectionnez les EPI, les EPC et les
+                risques liés à l'intervention.
               </p>
             </div>
 
+
             <div className="selection-columns">
-              <div className="selection-panel">
+
+              {/* EPI */}
+
+              <section className="selection-panel">
                 <h3>
                   EPI
                 </h3>
@@ -1173,35 +1554,37 @@ export default function GammeCreate() {
                     Aucun EPI disponible.
                   </p>
                 ) : (
-                  epis.map((item) => (
+                  epis.map((epi) => (
                     <label
-                      key={item.id}
                       className="selection-row"
+                      key={epi.id}
                     >
                       <input
                         type="checkbox"
-                        checked={
-                          selectedEpis.includes(
-                            item.id,
-                          )
-                        }
+                        checked={selectedEpis.includes(
+                          epi.id,
+                        )}
                         onChange={() =>
-                          toggleId(
-                            item.id,
+                          toggleSelection(
+                            epi.id,
+                            selectedEpis,
                             setSelectedEpis,
                           )
                         }
                       />
 
                       <span>
-                        {item.nom}
+                        {epi.nom}
                       </span>
                     </label>
                   ))
                 )}
-              </div>
+              </section>
 
-              <div className="selection-panel">
+
+              {/* EPC */}
+
+              <section className="selection-panel">
                 <h3>
                   EPC
                 </h3>
@@ -1211,35 +1594,37 @@ export default function GammeCreate() {
                     Aucun EPC disponible.
                   </p>
                 ) : (
-                  epcs.map((item) => (
+                  epcs.map((epc) => (
                     <label
-                      key={item.id}
                       className="selection-row"
+                      key={epc.id}
                     >
                       <input
                         type="checkbox"
-                        checked={
-                          selectedEpcs.includes(
-                            item.id,
-                          )
-                        }
+                        checked={selectedEpcs.includes(
+                          epc.id,
+                        )}
                         onChange={() =>
-                          toggleId(
-                            item.id,
+                          toggleSelection(
+                            epc.id,
+                            selectedEpcs,
                             setSelectedEpcs,
                           )
                         }
                       />
 
                       <span>
-                        {item.nom}
+                        {epc.nom}
                       </span>
                     </label>
                   ))
                 )}
-              </div>
+              </section>
 
-              <div className="selection-panel">
+
+              {/* RISQUES */}
+
+              <section className="selection-panel">
                 <h3>
                   Risques
                 </h3>
@@ -1249,52 +1634,61 @@ export default function GammeCreate() {
                     Aucun risque disponible.
                   </p>
                 ) : (
-                  risques.map((item) => (
+                  risques.map((risque) => (
                     <label
-                      key={item.id}
                       className="selection-row"
+                      key={risque.id}
                     >
                       <input
                         type="checkbox"
-                        checked={
-                          selectedRisques.includes(
-                            item.id,
-                          )
-                        }
+                        checked={selectedRisques.includes(
+                          risque.id,
+                        )}
                         onChange={() =>
-                          toggleId(
-                            item.id,
+                          toggleSelection(
+                            risque.id,
+                            selectedRisques,
                             setSelectedRisques,
                           )
                         }
                       />
 
                       <span>
-                        {item.nom}
+                        {risque.nom}
                       </span>
                     </label>
                   ))
                 )}
-              </div>
+              </section>
+
             </div>
           </>
         )}
 
-        {currentStep === 3 && (
+
+        {/* ====================================================
+            ÉTAPE 4
+            ==================================================== */}
+
+        {currentStep === 4 && (
           <>
             <div className="section-heading">
               <h2>
-                Moyens
+                Moyens nécessaires
               </h2>
 
               <p>
-                Sélectionnez les outillages
-                et pièces nécessaires.
+                Sélectionnez les outillages et les pièces
+                nécessaires à l'intervention.
               </p>
             </div>
 
-            <div className="selection-columns">
-              <div className="selection-panel">
+
+            <div className="selection-columns means-columns">
+
+              {/* OUTILLAGES */}
+
+              <section className="selection-panel">
                 <h3>
                   Outillages
                 </h3>
@@ -1304,64 +1698,67 @@ export default function GammeCreate() {
                     Aucun outillage disponible.
                   </p>
                 ) : (
-                  outillages.map((item) => {
+                  outillages.map((outillage) => {
                     const selected =
-                      selectedOutillages[
-                        item.id
-                      ];
+                      selectedOutillages.includes(
+                        outillage.id,
+                      );
 
                     return (
                       <div
-                        key={item.id}
                         className="quantity-row"
+                        key={outillage.id}
                       >
-                        <label className="selection-row">
-                          <input
-                            type="checkbox"
-                            checked={
-                              Boolean(
-                                selected,
-                              )
-                            }
-                            onChange={() =>
-                              toggleQuantity(
-                                item.id,
-                                setSelectedOutillages,
-                              )
-                            }
-                          />
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() =>
+                            toggleOutillage(
+                              outillage.id,
+                            )
+                          }
+                        />
 
-                          <span>
-                            {item.nom}
-                          </span>
-                        </label>
+                        <span>
+                          {outillage.nom}
+                        </span>
 
-                        {selected && (
-                          <input
-                            className="quantity-input"
-                            type="number"
-                            min={1}
-                            value={
-                              selected
-                            }
-                            onChange={(event) =>
-                              updateQuantity(
-                                item.id,
-                                Number(
-                                  event.target.value,
-                                ),
-                                setSelectedOutillages,
-                              )
-                            }
-                          />
-                        )}
+                        <input
+                          className="quantity-input"
+                          type="number"
+                          min={1}
+                          disabled={!selected}
+                          value={
+                            outillageQuantities[
+                              outillage.id
+                            ] ?? 1
+                          }
+                          onChange={(event) =>
+                            setOutillageQuantities(
+                              (current) => ({
+                                ...current,
+                                [outillage.id]:
+                                  Math.max(
+                                    1,
+                                    Number(
+                                      event.target
+                                        .value,
+                                    ) || 1,
+                                  ),
+                              }),
+                            )
+                          }
+                        />
                       </div>
                     );
                   })
                 )}
-              </div>
+              </section>
 
-              <div className="selection-panel">
+
+              {/* PIÈCES */}
+
+              <section className="selection-panel">
                 <h3>
                   Pièces de rechange
                 </h3>
@@ -1371,73 +1768,76 @@ export default function GammeCreate() {
                     Aucune pièce disponible.
                   </p>
                 ) : (
-                  pieces.map((item) => {
+                  pieces.map((piece) => {
                     const selected =
-                      selectedPieces[
-                        item.id
-                      ];
+                      selectedPieces.includes(
+                        piece.id,
+                      );
 
                     return (
                       <div
-                        key={item.id}
                         className="quantity-row"
+                        key={piece.id}
                       >
-                        <label className="selection-row">
-                          <input
-                            type="checkbox"
-                            checked={
-                              Boolean(
-                                selected,
-                              )
-                            }
-                            onChange={() =>
-                              toggleQuantity(
-                                item.id,
-                                setSelectedPieces,
-                              )
-                            }
-                          />
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() =>
+                            togglePiece(
+                              piece.id,
+                            )
+                          }
+                        />
 
-                          <span>
-                            {item.code
-                              ? `${item.code} — `
-                              : ""}
-                            {item.nom}
-                            {item.reference
-                              ? ` (${item.reference})`
-                              : ""}
-                          </span>
-                        </label>
+                        <span>
+                          {piece.nom}
+                          {piece.reference
+                            ? ` — ${piece.reference}`
+                            : ""}
+                        </span>
 
-                        {selected && (
-                          <input
-                            className="quantity-input"
-                            type="number"
-                            min={1}
-                            value={
-                              selected
-                            }
-                            onChange={(event) =>
-                              updateQuantity(
-                                item.id,
-                                Number(
-                                  event.target.value,
-                                ),
-                                setSelectedPieces,
-                              )
-                            }
-                          />
-                        )}
+                        <input
+                          className="quantity-input"
+                          type="number"
+                          min={1}
+                          disabled={!selected}
+                          value={
+                            pieceQuantities[
+                              piece.id
+                            ] ?? 1
+                          }
+                          onChange={(event) =>
+                            setPieceQuantities(
+                              (current) => ({
+                                ...current,
+                                [piece.id]:
+                                  Math.max(
+                                    1,
+                                    Number(
+                                      event.target
+                                        .value,
+                                    ) || 1,
+                                  ),
+                              }),
+                            )
+                          }
+                        />
                       </div>
                     );
                   })
                 )}
-              </div>
+              </section>
+
             </div>
           </>
         )}
 
-        {currentStep === 4 && (
+
+        {/* ====================================================
+            ÉTAPE 5
+            ==================================================== */}
+
+        {currentStep === 5 && (
           <>
             <div className="section-heading">
               <h2>
@@ -1445,177 +1845,308 @@ export default function GammeCreate() {
               </h2>
 
               <p>
-                Contrôlez les informations
-                avant la création de la gamme.
+                Vérifiez les informations avant de créer
+                la gamme V0.
               </p>
             </div>
 
+
             <div className="review-grid">
+
               <div>
                 <span>
-                  Code
+                  Code gamme
                 </span>
+
                 <strong>
-                  {form.code || "—"}
+                  {code || "—"}
                 </strong>
               </div>
+
+
+              <div>
+                <span>
+                  Abréviation
+                </span>
+
+                <strong>
+                  {abreviation || "—"}
+                </strong>
+              </div>
+
 
               <div>
                 <span>
                   Intitulé
                 </span>
+
                 <strong>
-                  {form.designation || "—"}
+                  {designation || "—"}
                 </strong>
               </div>
+
+
+              <div>
+                <span>
+                  Corps de métier
+                </span>
+
+                <strong>
+                  {corpsMetiers.find(
+                    (item) =>
+                      item.code === corpsMetier,
+                  )?.libelle || "—"}
+                </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  Type de rédaction
+                </span>
+
+                <strong>
+                  {typesRedaction.find(
+                    (item) =>
+                      item.code ===
+                      typeRedaction,
+                  )?.libelle || "—"}
+                </strong>
+              </div>
+
 
               <div>
                 <span>
                   Équipement
                 </span>
+
                 <strong>
-                  {selectedEquipment?.nom ||
+                  {selectedEquipement?.nom ||
                     "—"}
                 </strong>
               </div>
+
 
               <div>
                 <span>
                   Type maintenance
                 </span>
+
                 <strong>
-                  {maintenanceTypes.find(
+                  {typesMaintenance.find(
                     (item) =>
                       item.code ===
-                      form.type_maintenance,
+                      typeMaintenance,
                   )?.libelle || "—"}
                 </strong>
               </div>
+
 
               <div>
                 <span>
                   Périodicité
                 </span>
+
                 <strong>
-                  {form.periodicite ||
-                    "—"}
+                  {periodicites.find(
+                    (item) =>
+                      item.code ===
+                      periodicite,
+                  )?.libelle || "—"}
                 </strong>
               </div>
+
 
               <div>
                 <span>
                   Type d'arrêt
                 </span>
+
                 <strong>
                   {typesArret.find(
                     (item) =>
                       item.code ===
-                      form.type_arret,
+                      typeArret,
                   )?.libelle || "—"}
                 </strong>
               </div>
 
+
               <div>
                 <span>
-                  EPI
+                  Main-d'œuvre
                 </span>
+
+                <strong>
+                  {mainOeuvre}
+                </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  EPI sélectionnés
+                </span>
+
                 <strong>
                   {selectedEpis.length}
                 </strong>
               </div>
 
+
               <div>
                 <span>
-                  EPC
+                  EPC sélectionnés
                 </span>
+
                 <strong>
                   {selectedEpcs.length}
                 </strong>
               </div>
 
+
               <div>
                 <span>
                   Risques
                 </span>
+
                 <strong>
                   {selectedRisques.length}
                 </strong>
               </div>
 
+
               <div>
                 <span>
                   Outillages
                 </span>
+
                 <strong>
-                  {
-                    Object.keys(
-                      selectedOutillages,
-                    ).length
-                  }
+                  {selectedOutillages.length}
                 </strong>
               </div>
+
 
               <div>
                 <span>
                   Pièces
                 </span>
+
                 <strong>
-                  {
-                    Object.keys(
-                      selectedPieces,
-                    ).length
-                  }
+                  {selectedPieces.length}
                 </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  Image
+                </span>
+
+                <strong>
+                  {imageUrl
+                    ? "Image ajoutée"
+                    : "Aucune image"}
+                </strong>
+              </div>
+
+            </div>
+
+
+            {imageUrl && (
+              <div className="review-image">
+                <span>
+                  Aperçu de l'image
+                </span>
+
+                <img
+                  src={imageUrl}
+                  alt="Aperçu final"
+                />
+              </div>
+            )}
+
+
+            <div className="creation-ready">
+              <CheckCircle2 size={22} />
+
+              <div>
+                <strong>
+                  Prêt pour la création
+                </strong>
+
+                <span>
+                  La gamme sera créée avec une
+                  première version V0.
+                </span>
               </div>
             </div>
           </>
         )}
-      </section>
 
-      <div className="wizard-actions">
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={
-            currentStep === 0 ||
-            saving
-          }
-          onClick={previous}
-        >
-          <ArrowLeft size={17} />
-          Précédent
-        </button>
 
-        {currentStep <
-        wizardSteps.length - 1 ? (
+        {/* ====================================================
+            ACTIONS
+            ==================================================== */}
+
+        <div className="wizard-actions">
+
           <button
             type="button"
-            className="primary-button"
-            disabled={saving}
-            onClick={next}
+            className="secondary-button"
+            disabled={
+              currentStep === 1 || saving
+            }
+            onClick={previousStep}
           >
-            Suivant
-            <ArrowRight size={17} />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={saving}
-          >
-            {saving ? (
-              <LoaderCircle
-                className="spin"
-                size={17}
-              />
-            ) : (
-              <Save size={17} />
-            )}
+            <ArrowLeft size={17} />
 
-            Créer la gamme
+            Précédent
           </button>
-        )}
-      </div>
-    </form>
+
+
+          {currentStep <
+          WIZARD_STEPS.length ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={nextStep}
+            >
+              Suivant
+
+              <ArrowRight size={17} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                void handleCreate();
+              }}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2
+                    size={17}
+                    className="spin"
+                  />
+
+                  Création...
+                </>
+              ) : (
+                <>
+                  <Save size={17} />
+
+                  Créer la gamme
+                </>
+              )}
+            </button>
+          )}
+
+        </div>
+
+      </main>
+    </div>
   );
 }
