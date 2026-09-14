@@ -107,15 +107,15 @@ export default function ExportButtons({
           objectUrl,
         );
       }, 1500);
-    } catch (e: any) {
+    } catch (error: any) {
       console.error(
         `Erreur export ${type}:`,
-        e,
+        error,
       );
 
       const message =
         await extractBackendError(
-          e,
+          error,
           type === "pdf"
             ? "Erreur lors de la génération du PDF."
             : "Erreur lors de la génération du document Word.",
