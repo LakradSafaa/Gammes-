@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import {
   FileDown,
   FileText,
@@ -8,185 +7,111 @@ import {
 
 import api from "../../api/axios";
 
-
 interface Props {
   versionId: string;
   compact?: boolean;
 }
 
-
 async function extractBackendError(
   error: any,
   fallbackMessage: string,
 ): Promise<string> {
-  const responseData =
-    error?.response?.data;
+  const responseData = error?.response?.data;
 
-  if (
-    responseData instanceof Blob
-  ) {
+  if (responseData instanceof Blob) {
     try {
-      const text =
-        await responseData.text();
+      const text = await responseData.text();
+      const parsed = JSON.parse(text);
 
-      const parsed =
-        JSON.parse(text);
-
-      if (
-        parsed?.detail
-      ) {
-        return String(
-          parsed.detail,
-        );
+      if (parsed?.detail) {
+        return String(parsed.detail);
       }
     } catch {
       return fallbackMessage;
     }
   }
 
-  if (
-    responseData?.detail
-  ) {
-    return String(
-      responseData.detail,
-    );
+  if (responseData?.detail) {
+    return String(responseData.detail);
   }
 
-  if (
-    error?.message
-  ) {
-    return String(
-      error.message,
-    );
+  if (error?.message) {
+    return String(error.message);
   }
 
   return fallbackMessage;
 }
 
-
 export default function ExportButtons({
   versionId,
   compact = false,
 }: Props) {
-  const [
-    loading,
-    setLoading,
-  ] = useState<
-    "pdf" |
-    "word" |
-    null
+  const [loading, setLoading] = useState<
+    "pdf" | "word" | null
   >(null);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
-
+  const [error, setError] = useState("");
 
   const run = async (
-    type:
-      | "pdf"
-      | "word",
+    type: "pdf" | "word",
   ) => {
     try {
-      setLoading(
-        type,
-      );
-
+      setLoading(type);
       setError("");
 
+      const response = await api.post(
+        `/versions/${versionId}/export_${type}/`,
+        {},
+        {
+          responseType: "blob",
+        },
+      );
 
-      const response =
-        await api.post(
-          `/versions/${versionId}/export_${type}/`,
-          {},
-          {
-            responseType:
-              "blob",
-          },
-        );
-
-
-      const mimeType =
+      const mimeType: string =
         type === "pdf"
           ? "application/pdf"
           : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
 
       const extension =
         type === "pdf"
           ? "pdf"
           : "docx";
 
-
       const filename =
         `gamme_${versionId}.${extension}`;
 
-
-      const blob =
-        new Blob(
-          [
-            response.data,
-          ],
-          {
-            type:
-              mimeType,
-          },
-        );
-
+      const blob = new Blob(
+        [response.data],
+        {
+          type: mimeType,
+        },
+      );
 
       const objectUrl =
-        window.URL
-          .createObjectURL(
-            blob,
-          );
-
+        window.URL.createObjectURL(blob);
 
       const link =
-        document
-          .createElement(
-            "a",
-          );
+        document.createElement("a");
 
+      link.href = objectUrl;
+      link.download = filename;
+      link.style.display = "none";
 
-      link.href =
-        objectUrl;
-
-      link.download =
-        filename;
-
-      link.style.display =
-        "none";
-
-
-      document.body
-        .appendChild(
-          link,
-        );
-
+      document.body.appendChild(link);
 
       link.click();
-
-
       link.remove();
 
-
-      window.setTimeout(
-        () => {
-          window.URL
-            .revokeObjectURL(
-              objectUrl,
-            );
-        },
-        1500,
-      );
-    } catch (
-      e: any
-    ) {
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(
+          objectUrl,
+        );
+      }, 1500);
+    } catch (e: any) {
       console.error(
+        `Erreur export ${type}:`,
         e,
       );
-
 
       const message =
         await extractBackendError(
@@ -196,17 +121,11 @@ export default function ExportButtons({
             : "Erreur lors de la génération du document Word.",
         );
 
-
-      setError(
-        message,
-      );
+      setError(message);
     } finally {
-      setLoading(
-        null,
-      );
+      setLoading(null);
     }
   };
-
 
   return (
     <div
@@ -219,82 +138,44 @@ export default function ExportButtons({
       <button
         className="module-button module-button-pdf"
         type="button"
-        disabled={
-          loading !== null
-        }
-        onClick={() =>
-          void run(
-            "pdf",
-          )
-        }
+        disabled={loading !== null}
+        onClick={() => void run("pdf")}
       >
-        {
-          loading ===
-          "pdf"
-            ? (
-              <LoaderCircle
-                className="spin"
-                size={18}
-              />
-            )
-            : (
-              <FileDown
-                size={18}
-              />
-            )
-        }
+        {loading === "pdf" ? (
+          <LoaderCircle
+            className="spin"
+            size={18}
+          />
+        ) : (
+          <FileDown size={18} />
+        )}
 
-        {
-          !compact &&
-          "PDF"
-        }
+        {!compact && "PDF"}
       </button>
-
 
       <button
         className="module-button module-button-word"
         type="button"
-        disabled={
-          loading !== null
-        }
-        onClick={() =>
-          void run(
-            "word",
-          )
-        }
+        disabled={loading !== null}
+        onClick={() => void run("word")}
       >
-        {
-          loading ===
-          "word"
-            ? (
-              <LoaderCircle
-                className="spin"
-                size={18}
-              />
-            )
-            : (
-              <FileText
-                size={18}
-              />
-            )
-        }
+        {loading === "word" ? (
+          <LoaderCircle
+            className="spin"
+            size={18}
+          />
+        ) : (
+          <FileText size={18} />
+        )}
 
-        {
-          !compact &&
-          "Word"
-        }
+        {!compact && "Word"}
       </button>
 
-
-      {
-        error && (
-          <span
-            className="export-error"
-          >
-            {error}
-          </span>
-        )
-      }
+      {error && (
+        <span className="export-error">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
