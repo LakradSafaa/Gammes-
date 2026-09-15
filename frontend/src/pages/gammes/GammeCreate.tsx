@@ -46,6 +46,8 @@ type SimpleRef = {
   nom: string;
   description?: string | null;
   image_url?: string | null;
+  /** Indique si la valeur est disponible dans les listes métier. */
+  actif?: boolean | null;
 };
 
 type RefValue = {
