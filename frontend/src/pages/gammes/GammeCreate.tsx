@@ -46,8 +46,9 @@ type SimpleRef = {
   nom: string;
   description?: string | null;
   image_url?: string | null;
-  /** Indique si la valeur est disponible dans les listes métier. */
-  actif?: boolean | null;
+  // Certains référentiels spécialisés (notamment EPC) renvoient le drapeau actif.
+  // Il reste optionnel car les autres endpoints ne le fournissent pas forcément.
+  actif?: boolean;
 };
 
 type RefValue = {
